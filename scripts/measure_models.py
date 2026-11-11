@@ -25,11 +25,10 @@ LOCKED = [
     "face_detection_yunet_2023mar.onnx",
     "w600k_r50.onnx",
     "yolo-v9-t-384-license-plates-end2end.onnx",
-    "plate_ocr_ppocrv5_mobile.onnx",
-    "plate_ocr_dict.json",
+    "cct_xs_v2_global.onnx",
 ]
 UNUSED = {"genderage.onnx", "mivolo_v2_age.onnx"}  # measured for the facts table only
-DYN = {"plate_ocr_ppocrv5_mobile.onnx": {"width": 320}, "yolo-v9-t-384-license-plates-end2end.onnx": {"*": 384}}
+DYN = {"yolo-v9-t-384-license-plates-end2end.onnx": {"*": 384}}
 
 
 def sha256(p: Path) -> str:
@@ -108,21 +107,15 @@ def table(rows: list[dict]) -> str:
 def ocr_facts() -> dict:
     import onnxruntime as ort
 
-    d = json.loads((MODELS / "plate_ocr_dict.json").read_text(encoding="utf-8"))
     sess = ort.InferenceSession(
-        str(MODELS / "plate_ocr_ppocrv5_mobile.onnx"), ort_session_options(), providers=["CPUExecutionProvider"]
+        str(MODELS / "cct_xs_v2_global.onnx"), ort_session_options(), providers=["CPUExecutionProvider"]
     )
-    inp = sess.get_inputs()[0]
-    x = np.zeros(concrete_shape("plate_ocr_ppocrv5_mobile.onnx", list(inp.shape)), np.float32)
-    out = sess.run(None, {inp.name: x})[0]
-    n_dict = len(d)
-    classes = out.shape[-1]
+    plate, region = sess.run(None, {"input": np.zeros((1, 64, 128, 3), np.uint8)})
     return {
-        "dict_type": type(d).__name__,
-        "len_dict": n_dict,
-        "output_shape": list(out.shape),
-        "classes": classes,
-        "classes_minus_dict": classes - n_dict,
+        "plate_shape": list(plate.shape),
+        "region_shape": list(region.shape),
+        "plate_rows_sum_to_one": bool(np.allclose(plate.sum(-1), 1.0, atol=1e-4)),
+        "region_sums_to_one": bool(abs(float(region.sum()) - 1.0) < 1e-4),
     }
 
 

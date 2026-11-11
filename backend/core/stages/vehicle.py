@@ -1,4 +1,4 @@
-"""Stage 3: plate detection, masked OCR, plate rule, colour."""
+"""Stage 3: plate detection, plate reading (cct-xs-v2-global), plate rule, colour."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,11 +7,10 @@ from typing import Optional
 import cv2
 import numpy as np
 
-PLATE_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+PLATE_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_"  # the model's 37 classes; "_" (index 36) is an empty slot
+PAD = 36
 YOLO_SIZE = 384
-OCR_HEIGHT = 48
-OCR_MAX_WIDTH = 320
-OCR_MIN_WIDTH = 48
+OCR_WIDTH, OCR_HEIGHT = 128, 64
 PLATE_MARGIN = 0.08
 
 
@@ -77,43 +76,20 @@ def crop_with_margin(img_bgr: np.ndarray, box: PlateBox, margin: float = PLATE_M
     return img_bgr[max(0, box.y1 - my) : min(h, box.y2 + my), max(0, box.x1 - mx) : min(w, box.x2 + mx)]
 
 
-def allowed_indices(charset: list[str]) -> np.ndarray:
-    """Class indices the plate may use: the CTC blank (0) plus the A-Z and 0-9 classes."""
-    return np.array([0] + [i for i, c in enumerate(charset) if c in PLATE_CHARS], dtype=np.int64)
+def read_plate(crop_bgr: np.ndarray, session) -> tuple[str, float]:
+    """Read a plate with cct-xs-v2-global: ten independent character slots, not a sequence.
 
-
-def ctc_decode(probs: np.ndarray, charset: list[str], allowed: np.ndarray) -> tuple[str, float]:
-    """Greedy CTC over [T, C]. The model's own argmax decides blank-or-character; a character step takes
-    the best allowed plate character, so CJK or symbol classes can never reach the output."""
-    space = len(charset) - 1
-    chars_only = allowed[allowed != 0]
-    best_full = probs.argmax(axis=1)
-    best_plate = chars_only[probs[:, chars_only].argmax(axis=1)]
-    out: list[str] = []
-    confs: list[float] = []
-    prev = -1
-    for t in range(probs.shape[0]):
-        c = int(best_full[t])
-        if c == 0 or c == space:
-            prev = -1 if c == 0 else prev
-            continue
-        k = int(best_plate[t])
-        if k != prev:
-            out.append(charset[k])
-            confs.append(float(probs[t, k]))
-        prev = k
-    return "".join(out), (float(np.mean(confs)) if confs else 0.0)
-
-
-def read_plate(crop_bgr: np.ndarray, session, charset: list[str], allowed: np.ndarray) -> tuple[str, float]:
+    Input: the whole plate crop resized to 128x64, RGB, uint8, no normalisation. Output: a probability for
+    each of 37 classes in each slot (36 characters plus the pad). The text is the best class of each slot
+    with the pad slots dropped. The confidence is the LOWEST slot probability: one unsure character makes
+    the whole read unsure (an average would hide it).
+    """
     if crop_bgr is None or crop_bgr.size == 0:
         return "", 0.0
-    h, w = crop_bgr.shape[:2]
-    width = int(min(OCR_MAX_WIDTH, max(OCR_MIN_WIDTH, round(w * OCR_HEIGHT / h))))
-    resized = cv2.resize(crop_bgr, (width, OCR_HEIGHT), interpolation=cv2.INTER_LINEAR)
-    blob = ((resized.astype(np.float32) / 255.0 - 0.5) / 0.5).transpose(2, 0, 1)[None]
-    out = np.asarray(session.run(None, {session.get_inputs()[0].name: blob})[0])
-    return ctc_decode(out[0], charset, allowed)
+    rgb = cv2.cvtColor(cv2.resize(crop_bgr, (OCR_WIDTH, OCR_HEIGHT), interpolation=cv2.INTER_LINEAR), cv2.COLOR_BGR2RGB)
+    probs = np.asarray(session.run(["plate"], {"input": rgb[None]})[0])[0]  # [10, 37]
+    best = probs.argmax(axis=1)
+    return "".join(PLATE_ALPHABET[i] for i in best if i != PAD), float(probs.max(axis=1).min())
 
 
 # ---- colour (advisory) ----

@@ -194,7 +194,7 @@ def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -
     from .registry import ModelRegistry
     from .stages.barcode import run_barcode_stage
     from .stages.face import FaceDetector, embed, run_face_stage
-    from .stages.vehicle import allowed_indices, detect_plate, read_plate, run_vehicle_stage
+    from .stages.vehicle import detect_plate, read_plate, run_vehicle_stage
 
     registry = ModelRegistry(settings.models_dir, settings.models_dir / "models.lock", settings.liveness_model)
     registry.load()
@@ -205,7 +205,6 @@ def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -
     detector = FaceDetector(registry.face_detector_path)
     embedder_session = registry.session("face_embedder")
     plate_detector, plate_ocr = registry.session("plate_detector"), registry.session("plate_ocr")
-    allowed = allowed_indices(registry.plate_charset)
 
     if settings.liveness_model is not None:
         liveness: Any = OnnxLiveness(
@@ -229,7 +228,7 @@ def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -
             img,
             claimed,
             lambda i: detect_plate(i, plate_detector),
-            lambda c: read_plate(c, plate_ocr, registry.plate_charset, allowed),
+            lambda c: read_plate(c, plate_ocr),
             settings,
         ),
         liveness_skipped=skipped,

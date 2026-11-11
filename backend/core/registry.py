@@ -15,10 +15,9 @@ Name = Literal["face_embedder", "plate_detector", "plate_ocr", "liveness"]
 _FILES = {
     "face_embedder": "w600k_r50.onnx",
     "plate_detector": "yolo-v9-t-384-license-plates-end2end.onnx",
-    "plate_ocr": "plate_ocr_ppocrv5_mobile.onnx",
+    "plate_ocr": "cct_xs_v2_global.onnx",
 }
 _DETECTOR = "face_detection_yunet_2023mar.onnx"
-_DICT = "plate_ocr_dict.json"
 
 
 class ModelHashMismatch(EngineError):
@@ -48,7 +47,6 @@ class ModelRegistry:
         self._dir, self._lock, self._liveness = models_dir, lock_path, liveness_path
         self._sessions: dict[str, ort.InferenceSession] = {}
         self.face_detector_path = models_dir / _DETECTOR  # loaded by OpenCV (FaceDetectorYN), not ORT
-        self.plate_charset: list[str] = []
         self.loaded: dict[str, bool] = {n: False for n in (*_FILES, "liveness")}
 
     def load(self) -> None:
@@ -56,7 +54,7 @@ class ModelRegistry:
             return
         lock = json.loads(self._lock.read_text(encoding="utf-8"))
         verify_lock(self._dir, self._lock)
-        for name in (*_FILES.values(), _DETECTOR, _DICT):  # every file we open must be locked
+        for name in (*_FILES.values(), _DETECTOR):  # every file we open must be locked
             if name not in lock:
                 raise ModelHashMismatch(name)
         if self._liveness is not None:
@@ -66,9 +64,6 @@ class ModelRegistry:
         sessions = {n: self._open(self._dir / f) for n, f in _FILES.items()}
         if self._liveness is not None:
             sessions["liveness"] = self._open(self._liveness)
-        # Measured: output classes = len(dict) + 2 -> [CTC blank] + dict + [space]
-        chars = json.loads((self._dir / _DICT).read_text(encoding="utf-8"))
-        self.plate_charset = ["", *chars, " "]
         self.loaded.update({n: n in sessions for n in self.loaded})
         self._sessions = sessions  # assigned last: a failed load leaves the registry empty
 

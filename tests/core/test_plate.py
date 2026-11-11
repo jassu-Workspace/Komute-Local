@@ -9,10 +9,10 @@ import cv2
 
 from backend.core.registry import ModelRegistry
 from backend.core.stages.vehicle import (
+    PAD,
+    PLATE_ALPHABET,
     PlateBox,
-    allowed_indices,
     crop_with_margin,
-    ctc_decode,
     decode_end2end,
     detect_plate,
     letterbox,
@@ -27,11 +27,6 @@ def reg():
     r = ModelRegistry(Path("backend/models"), Path("backend/models/models.lock"), None)
     r.load()
     return r
-
-
-def small_charset():
-    # blank, '口' (CJK), 'A', 'B', '1', ' ' (space last)
-    return ["", "口", "A", "B", "1", " "]
 
 
 def test_letterbox_roundtrip_coordinates():
@@ -58,49 +53,72 @@ def test_decode_end2end_on_recorded_fixture():
     assert abs(best.x1 - meta["box"][0]) <= 2 and abs(best.y2 - meta["box"][3]) <= 2
 
 
-def test_ctc_masked_decode_ignores_cjk_columns():
-    cs = small_charset()
-    allowed = allowed_indices(cs)
-    assert list(allowed) == [0, 2, 3, 4]
-    probs = np.array([
-        [0.05, 0.80, 0.10, 0.03, 0.01, 0.01],  # CJK dominates -> best plate char is 'A'
-        [0.90, 0.02, 0.03, 0.02, 0.02, 0.01],  # blank
-        [0.05, 0.05, 0.05, 0.80, 0.03, 0.02],  # 'B'
-    ])
-    assert ctc_decode(probs, cs, allowed)[0] == "AB"
+def _slots(text, p=0.99, overrides=None):
+    """A fake model output [1, 10, 37]: each slot puts probability p on its character (pad after the text)."""
+    out = np.full((1, 10, 37), (1 - p) / 36)
+    for i in range(10):
+        out[0, i, PLATE_ALPHABET.index(text[i]) if i < len(text) else PAD] = p
+    for (slot, char), prob in (overrides or {}).items():
+        out[0, slot, :] = (1 - prob) / 36
+        out[0, slot, PLATE_ALPHABET.index(char)] = prob
+    return out
 
 
-def test_ctc_collapses_repeats_and_blank_separates_doubles():
-    cs = small_charset()
-    allowed = allowed_indices(cs)
+class FakeOcr:
+    def __init__(self, output):
+        self.output, self.fed = output, None
 
-    def row(i):
-        r = np.full(6, 0.01)
-        r[i] = 0.95
-        return r
-
-    assert ctc_decode(np.array([row(2), row(2), row(3)]), cs, allowed)[0] == "AB"
-    assert ctc_decode(np.array([row(2), row(0), row(2)]), cs, allowed)[0] == "AA"
-    assert ctc_decode(np.array([row(5), row(0)]), cs, allowed) == ("", 0.0)
+    def run(self, names, feed):
+        self.fed = (names, feed)
+        return [self.output]
 
 
-def test_allowed_indices_match_measured_charset(reg):
-    allowed = allowed_indices(reg.plate_charset)
-    assert len(allowed) == 37 and allowed[0] == 0
-    assert reg.plate_charset[16163] == "0" and reg.plate_charset[16179] == "A"
+def test_read_plate_decodes_slots_and_drops_pads():
+    text, conf = read_plate(np.zeros((40, 80, 3), np.uint8), FakeOcr(_slots("ABC123", 0.97)))
+    assert text == "ABC123" and conf == pytest.approx(0.97)
 
 
-def _plate_image(text="ABC123", w=300, h=100):
+def test_read_plate_keeps_double_letters_in_separate_slots():
+    assert read_plate(np.zeros((40, 80, 3), np.uint8), FakeOcr(_slots("AAA0000")))[0] == "AAA0000"
+
+
+def test_read_plate_confidence_is_the_weakest_slot_not_the_average():
+    ocr = FakeOcr(_slots("ABC123", 0.999, {(4, "2"): 0.55}))
+    text, conf = read_plate(np.zeros((40, 80, 3), np.uint8), ocr)
+    assert text == "ABC123" and conf == pytest.approx(0.55)
+
+
+def test_read_plate_all_pad_is_empty_and_a_middle_pad_is_dropped():
+    assert read_plate(np.zeros((40, 80, 3), np.uint8), FakeOcr(_slots("")))[0] == ""
+    assert read_plate(np.zeros((40, 80, 3), np.uint8), FakeOcr(_slots("ABC", 0.99, {(1, "_"): 0.99})))[0] == "AC"
+
+
+def test_read_plate_feeds_rgb_uint8_nhwc_128x64():
+    ocr = FakeOcr(_slots("AB"))
+    bgr = np.zeros((50, 100, 3), np.uint8)
+    bgr[..., 0] = 10  # blue channel in BGR
+    bgr[..., 2] = 200  # red channel in BGR
+    read_plate(bgr, ocr)
+    names, feed = ocr.fed
+    x = feed["input"]
+    assert names == ["plate"] and x.shape == (1, 64, 128, 3) and x.dtype == np.uint8
+    assert x[0, 0, 0, 0] == 200 and x[0, 0, 0, 2] == 10  # RGB order: red first
+
+
+def test_alphabet_matches_the_model_card():
+    assert len(PLATE_ALPHABET) == 37 and PLATE_ALPHABET[PAD] == "_" and PLATE_ALPHABET[:10] == "0123456789"
+
+
+def _plate_image(text="ABC123", w=256, h=128):
     img = np.full((h, w, 3), 255, np.uint8)
-    cv2.putText(img, text, (12, 72), cv2.FONT_HERSHEY_DUPLEX, 2.0, (0, 0, 0), 3, cv2.LINE_AA)
+    cv2.putText(img, text, (14, 84), cv2.FONT_HERSHEY_DUPLEX, 1.9, (0, 0, 0), 3, cv2.LINE_AA)
     return img
 
 
 @pytest.mark.models
 def test_reads_rendered_plate(reg):
-    allowed = allowed_indices(reg.plate_charset)
-    text, conf = read_plate(_plate_image(), reg.session("plate_ocr"), reg.plate_charset, allowed)
-    assert text == "ABC123" and 0 < conf <= 1.0
+    text, conf = read_plate(_plate_image(), reg.session("plate_ocr"))
+    assert text == "ABC123" and 0.5 < conf <= 1.0
 
 
 @pytest.mark.models
@@ -116,7 +134,7 @@ def test_no_plate_on_blank_scene(reg):
 
 
 def test_empty_crop_reads_nothing():
-    assert read_plate(np.zeros((0, 0, 3), np.uint8), None, small_charset(), np.array([0])) == ("", 0.0)
+    assert read_plate(np.zeros((0, 0, 3), np.uint8), None) == ("", 0.0)
 
 
 def test_crop_with_margin_clipped_to_image():

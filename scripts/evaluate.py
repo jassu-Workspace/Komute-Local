@@ -116,13 +116,12 @@ def eval_face(manifest: str, out: str, target_far: float = 1e-4) -> None:
 def eval_plate(manifest: str, out: str) -> None:
     from backend.core.config import get_settings
     from backend.core.registry import ModelRegistry
-    from backend.core.stages.vehicle import allowed_indices, crop_with_margin, detect_plate, read_plate
+    from backend.core.stages.vehicle import crop_with_margin, detect_plate, read_plate
     from backend.core.matching import plates_match, normalise_plate
 
     s = get_settings()
     reg = ModelRegistry(s.models_dir, s.models_dir / "models.lock", None)
     reg.load()
-    allowed = allowed_indices(reg.plate_charset)
     n = found = exact = rule = 0
     for r in _rows(manifest):
         n += 1
@@ -131,7 +130,7 @@ def eval_plate(manifest: str, out: str) -> None:
         if box is None:
             continue
         found += 1
-        text, _ = read_plate(crop_with_margin(img, box), reg.session("plate_ocr"), reg.plate_charset, allowed)
+        text, _ = read_plate(crop_with_margin(img, box), reg.session("plate_ocr"))
         exact += normalise_plate(text) == normalise_plate(r["plate"])
         rule += plates_match(text, r["plate"])
     _write(out, "Plate calibration", [

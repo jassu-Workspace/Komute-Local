@@ -13,3 +13,6 @@ __pycache__/
 .venv/
 .pytest_cache/
 .superpowers/
+
+# Owner working folder: benchmark scripts, stock test images, retired models
+temp/

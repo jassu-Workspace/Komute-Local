@@ -2,6 +2,5 @@
   "face_detection_yunet_2023mar.onnx": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
   "w600k_r50.onnx": "4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43",
   "yolo-v9-t-384-license-plates-end2end.onnx": "888397b96d761c89db40bc9c305838e8652660f5e282c2cadebbe8d2951a77a8",
-  "plate_ocr_ppocrv5_mobile.onnx": "71443c7381a5f851cbec81d1e6557e8b56956078aa503056978852b0cdfc3d60",
-  "plate_ocr_dict.json": "c9007c1e471102735d65ed5e6bf2c197f4c3b926f7005c61143ac9c37c25adce"
+  "cct_xs_v2_global.onnx": "8031afb5fdc6b4d80462c9d542f1284ebd2cfddf5dbacd62609848d7e2855f44"
 }

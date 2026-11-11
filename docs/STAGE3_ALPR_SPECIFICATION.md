@@ -8,9 +8,12 @@ YOLOv9-tiny at 384×384. Preprocessing: letterbox (pad value 114), RGB, `/255`, 
 
 ## Plate reading
 
-PP-OCRv5 mobile with `plate_ocr_dict.json`. The model has **18,385 classes** (blank, 18,383 dictionary characters, space), most of them CJK. It is not a 36-class model. The crop is resized to 48 px high (width 48–320, aspect kept) and normalised to `(x/255 − 0.5)/0.5`.
+`cct-xs-v2-global-model` (`cct_xs_v2_global.onnx`, 3.2 MB, MIT): a compact convolutional transformer trained on licence plates. It replaces the general-purpose PP-OCRv5 text model, which read only 1 of 9 real Canadian plates exactly (dropped characters, emblems read as characters, `W` read as `N`).
 
-Decoding is greedy CTC with a plate-only rule: the model's own argmax decides blank or character at each step. At a character step the best allowed class (`A–Z`, `0–9`) is taken, so a CJK or symbol class never reaches the output. Repeats collapse, and a blank separates a real double letter. The confidence is the mean probability of the chosen characters.
+- **Input:** the whole plate crop (8% margin), resized to 128×64, RGB, `uint8`, NHWC `[1, 64, 128, 3]`. No normalisation.
+- **Output `plate`:** `[1, 10, 37]` probabilities (softmax). Ten independent character slots, each choosing one of 37 classes: `0–9`, `A–Z` and `_` (empty slot). This is positional classification, not CTC: a repeated letter (`AAA 0000`) sits in separate slots and cannot collapse, and an emblem is simply not a character.
+- **Output `region`:** `[1, 66]` country or region class. Not used.
+- **Text:** the best class of each slot, empty slots dropped. **Confidence:** the lowest slot probability, so one unsure character makes the whole read unsure (an average would hide it).
 
 An empty read or a confidence below 0.6 gives `PLATE_UNREADABLE` (retryable), not a mismatch.
 

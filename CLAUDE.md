@@ -107,7 +107,7 @@ Licensing is closed by the owner (2026-11-11): licensed production models are in
 | Face embedding (512-d) | `w600k_r50.onnx` | Threshold calibrated on data. |
 | Liveness | not in the repo | MiniFASNet is the candidate. The owner supplies or approves one. |
 | Plate detection | `yolo-v9-t-384-license-plates-end2end.onnx` | |
-| Plate OCR | `plate_ocr_ppocrv5_mobile.onnx`, `plate_ocr_dict.json` | Output masked to A–Z and 0–9. |
+| Plate OCR | `cct_xs_v2_global.onnx` | cct-xs-v2-global-model (MIT): ten character slots over 37 classes, not CTC. Replaced PP-OCRv5 (read 1 of 9 real plates exactly; this reads 9 of 9). |
 | Age estimation | `genderage.onnx`, `mivolo_v2_age.onnx` | Unused. Dropped by default. |
 
 Python dependency licences were never audited. The owner has put licensing out of scope.
@@ -118,7 +118,7 @@ The owner asked to skip the remaining questions. These are the defaults I chose.
 
 1. **Age estimation is dropped.** Identity rests on the face match and the barcode date of birth. This removes `genderage.onnx` (blocked) and `mivolo_v2_age.onnx` (unresolved) and frees about 120 MB of RAM. The docs' `estimated_age_delta_years` field is not produced.
 2. **Face model.** `w600k_r50.onnx` stays (licensed per the owner). Its threshold is calibrated on data.
-3. **Plate OCR.** Use the cleared PP-OCRv5 file with its output masked to A–Z and 0–9, and benchmark it on real plates. `fast-plate-ocr` (MIT code, weight terms unstated) is the alternative if the PP-OCR accuracy falls short.
+3. **Plate OCR.** `cct_xs_v2_global.onnx` (the owner replaced PP-OCRv5 after testing). Input 128x64 RGB uint8, ten slots, confidence is the lowest slot probability.
 4. **Plate detector.** Keep the YOLOv9-tiny file.
 5. **Liveness.** Candidate: MiniFASNet (Apache-2.0 per a third-party index; training data undocumented). Benchmark it against print and screen-replay attacks before adopting. A cloud vision API for face crops is not adopted.
 6. **Licence-number regexes are a sanity check only.** The barcode `DAQ` value is authoritative. Several owner patterns are looser than outside sources (see the Jurisdictions section).
@@ -181,7 +181,7 @@ Compared on 2026-11-11 with a secondary copy of the US FMCSA chart (August 2021)
 - **Face threshold:** 0.40 is provisional. Real data so far is 3 licences, 6 impostor pairs and no selfies. No false-accept or false-reject rate is measured.
 - **Policy tables:** allowed classes exist only for ON (`G`) and QC, BC, AB (`5`). The real NS and SK cards (class `5`) are rejected `CLASS_NOT_ALLOWED` until the owner decides. Allowed restriction codes are empty for every province.
 - **Docker:** the owner decided (2026-11-11) NOT to use Docker until the module is handed to the main developers. Do not build, run or start Docker. Memory is measured locally with `scripts/bench.py` (Windows: steady about 334 MB, peak about 383 MB). The `Dockerfile` exists but has never been built or run; Linux memory is unmeasured until handover.
-- **Plate OCR and detector:** checked on a rendered plate and a synthetic scene only. No real vehicle photo has been tested.
+- **Plate OCR and detector:** the OCR reads 9 of 9 internet photos of Canadian plates exactly (tuned on nothing; the photos are in `$LOCALAPPDATA/komute/samples/plates`, stock images, never commit them). Plates smaller than about 5% of the frame width were not detected in a quick test. No real onboarding vehicle photo has been tested.
 - **Docs:** `docs/superpowers/` holds the original spec and plan, which predate several decisions (see the ledger rulings). The other `docs/*.md` files describe the built system.
 - **Not built:** S3 storage, multi-frame liveness, OCR fallback, age estimation, rate limiting (the host's job).
 
