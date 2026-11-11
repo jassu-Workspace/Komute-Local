@@ -30,7 +30,7 @@ Keep `--workers 1`: one verification at a time per container, and the models loa
 
 ## Container
 
-`Dockerfile` builds from `python:3.12-slim`, installs `requirements.txt`, runs as a non-root user with one worker, and uses `MALLOC_ARENA_MAX=2`. `.dockerignore` keeps samples, docs, tests, secrets and the unused age models out. **It has not been built or run yet**: the Docker engine could not be started on the development machine. Build and memory-check it with:
+`Dockerfile` builds from `python:3.12-slim`, installs `requirements.txt`, runs as a non-root user with one worker, and uses `MALLOC_ARENA_MAX=2`. `.dockerignore` keeps samples, docs, tests, secrets and the unused age models out. **It has not been built or run, by decision:** the owner deferred Docker until the module is handed to the main developers. Until then, measure memory locally with `scripts/bench.py`. At handover, build and memory-check it with:
 
 ```bash
 docker build -t komute-local .

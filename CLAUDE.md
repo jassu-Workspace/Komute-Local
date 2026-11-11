@@ -178,7 +178,7 @@ Compared on 2026-11-11 with a secondary copy of the US FMCSA chart (August 2021)
 - **Liveness:** no liveness model file exists. Dev runs skip it (advisory `LIVENESS_SKIPPED_DEV`). `OnnxLiveness` is untested on a real model and its parameters are unverified. Production start requires one.
 - **Face threshold:** 0.40 is provisional. Real data so far is 3 licences, 6 impostor pairs and no selfies. No false-accept or false-reject rate is measured.
 - **Policy tables:** allowed classes exist only for ON (`G`) and QC, BC, AB (`5`). The real NS and SK cards (class `5`) are rejected `CLASS_NOT_ALLOWED` until the owner decides. Allowed restriction codes are empty for every province.
-- **Linux memory:** measured on Windows only (steady about 334 MB, peak about 383 MB). The Docker engine would not start here, so the `Dockerfile` has never been built or run.
+- **Docker:** the owner decided (2026-11-11) NOT to use Docker until the module is handed to the main developers. Do not build, run or start Docker. Memory is measured locally with `scripts/bench.py` (Windows: steady about 334 MB, peak about 383 MB). The `Dockerfile` exists but has never been built or run; Linux memory is unmeasured until handover.
 - **Plate OCR and detector:** checked on a rendered plate and a synthetic scene only. No real vehicle photo has been tested.
 - **Docs:** `docs/superpowers/` holds the original spec and plan, which predate several decisions (see the ledger rulings). The other `docs/*.md` files describe the built system.
 - **Not built:** S3 storage, multi-frame liveness, OCR fallback, age estimation, rate limiting (the host's job).

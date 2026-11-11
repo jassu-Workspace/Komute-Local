@@ -8,7 +8,7 @@ Evidence data: three real Canadian licences (front and back), synthetic AAMVA ba
 
 | Gate | Result | Evidence |
 |---|---|---|
-| **Memory** | **PASS on Windows. NOT MEASURED on Linux** | 50 sequential runs: steady 334 MB, peak 383 MB, drift 0 MB (budget 900 / 1200). `docs/calibration/bench-windows.md`. The liveness model's memory is not included. The Docker engine would not start here, so the `Dockerfile` was never built or run |
+| **Memory** | **PASS on Windows (local). Linux deferred by the owner until handover** | 50 sequential runs: steady 334 MB, peak 383 MB, drift 0 MB (budget 900 / 1200). `docs/calibration/bench-windows.md`. The liveness model's memory is not included. The owner chose not to use Docker before handover, so the `Dockerfile` was never built or run |
 | **Latency** | **MEASURED, no target agreed** | p50 1.43 s, p95 1.85 s, max 1.97 s. Stage medians: barcode 96 ms, face 485 ms, vehicle 74 ms. About 0.5 s is image encoding and encrypted writes. A photo with no barcode takes 2–6 s to reject (10 s search budget) |
 | **Barcode** | **PASS on what exists; coverage is 3 of 13** | 3 of 3 real backs decoded and parsed (NS, ON, SK; 70–145 ms). 78 of 78 synthetic decodes across 13 issuers × 6 conditions (clean, blur, tilt, dark, small, rotated 90°). The real cards exposed two parser bugs (wrong subfile offset; name stored outside `DAC`), both fixed with regression tests. The other 10 provinces have never been seen on a real card |
 | **Face** | **NOT MEASURED** | 3 real licence photos matched themselves at 1.0. 6 real impostor pairs scored −0.098 to 0.064 (mean −0.016). No selfie of a real person was available, so no false-reject rate exists and no cross-age pair was tested. A false-accept rate of 1 in 10,000 needs at least 29,955 impostor trials with no accepts. The 0.40 threshold is a provisional value |
@@ -37,7 +37,7 @@ See the ledger in `.superpowers/sdd/2026-11-11-komute-local-master-plan/progress
 2. Real selfies (5–10 people, with consent) to measure false rejects, and public cross-age and impostor sets to bound false accepts. Report intervals, not point rates.
 3. A decision on NS and SK class `5`, and the allowed restriction codes for every province, from real samples.
 4. A real vehicle photo set to test plate detection, reading and colour.
-5. Start the Docker engine, build the image and run the memory bench in it.
+5. After handover to the main developers: build the image and run the memory bench on Linux (deferred by the owner; no Docker before then).
 6. Real licences for the other 10 provinces, to confirm each issuer prints a readable AAMVA barcode.
 7. Legal review of the Quebec Law 25 and municipal citations, the hand-controls rule, and audit-record retention.
 8. Security triage of the deferred items: a minimum API key length in production, and a re-review of `storage/local.py` after its last fix.

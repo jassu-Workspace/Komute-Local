@@ -2,7 +2,7 @@
 
 An offline verification module for driver onboarding. A host application sends a driver's claimed details and four photos. Komüte-Local returns **`APPROVED` or `REJECTED`** with reason codes, with no human in the loop. It runs on CPU in a 1.0–1.3 GB RAM budget and serves 13 Canadian provinces and territories. Nothing leaves the machine.
 
-**Status:** built and tested on three real Canadian licences plus synthetic data. It is **not production-ready**: liveness has no model yet, accuracy is not measured on enough real people, and the Linux container was never run. See [`docs/ACCEPTANCE_REPORT.md`](docs/ACCEPTANCE_REPORT.md) for what is proven and what is not.
+**Status:** built and tested on three real Canadian licences plus synthetic data. It is **not production-ready**: liveness has no model yet, accuracy is not measured on enough real people, and the Linux container was never run (deferred until handover, by decision). See [`docs/ACCEPTANCE_REPORT.md`](docs/ACCEPTANCE_REPORT.md) for what is proven and what is not.
 
 ## What it checks
 
