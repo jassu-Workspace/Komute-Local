@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     dev_skip_liveness: bool = False
     face_match_threshold: float = 0.40
     liveness_threshold: float = 0.5
+    # MiniFASNet-style defaults. Unverified until the owner supplies the liveness model file.
+    liveness_crop_scale: float = 2.7
+    liveness_input_size: int = 80
+    liveness_live_index: int = 1
     plate_min_confidence: float = 0.6
     max_upload_bytes: int = 10_000_000
     max_image_side: int = 2048
