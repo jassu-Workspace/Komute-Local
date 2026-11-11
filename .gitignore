@@ -3,6 +3,9 @@ Original Lisence's/
 samples/
 storage/uploads/
 *.env
+.env
+.env.*
+!.env.example
 
 # Large model weights (hashes live in backend/models/models.lock)
 backend/models/*.onnx

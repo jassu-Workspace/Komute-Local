@@ -18,7 +18,8 @@ def _safe_province(code: str) -> str | None:
 
 
 def licence_gates(
-    record: AamvaRecord, claimed: Claimed, now_utc: datetime
+    record: AamvaRecord, claimed: Claimed, now_utc: datetime,
+    name_threshold: float = 85.0, min_age: int = policy.MIN_AGE,
 ) -> tuple[list[Reason], list[Advisory]]:
     reasons: list[Reason] = []
     advisories: list[Advisory] = []
@@ -41,7 +42,7 @@ def licence_gates(
     if barcode_licence and not policy.LICENCE_PATTERNS[province].match(barcode_licence):
         advisories.append(Advisory.LICENCE_FORMAT_UNUSUAL)
 
-    if not names_match(claimed.full_name, record.full_name())[0]:
+    if not names_match(claimed.full_name, record.full_name(), name_threshold)[0]:
         fail(ReasonCode.NAME_MISMATCH)
 
     dob = record.date("DBB")
@@ -52,7 +53,7 @@ def licence_gates(
     expiry = record.date("DBA")
     if expiry is None or today > expiry:
         fail(ReasonCode.LICENCE_EXPIRED)
-    if dob is not None and age_on(dob, today) < policy.MIN_AGE:
+    if dob is not None and age_on(dob, today) < min_age:
         fail(ReasonCode.UNDERAGE)
 
     return reasons, advisories

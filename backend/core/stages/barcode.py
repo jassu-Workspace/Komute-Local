@@ -93,7 +93,8 @@ def decode_pdf417(img_bgr: np.ndarray, budget_s: float = DEFAULT_BUDGET_S) -> Op
 
 
 def run_barcode_stage(
-    licence_back: np.ndarray, claimed: Claimed, now_utc: datetime, budget_s: float = DEFAULT_BUDGET_S
+    licence_back: np.ndarray, claimed: Claimed, now_utc: datetime, budget_s: float = DEFAULT_BUDGET_S,
+    name_threshold: float = 85.0, min_age: int = 18,
 ) -> tuple[StageResult, Optional[AamvaRecord]]:
     """Decode, parse and gate. `details` holds no personal data: the engine seals the record separately."""
     result = StageResult(name="barcode", ran=True)
@@ -113,7 +114,7 @@ def run_barcode_stage(
         return result, None
     result.details["aamva"] = True
     result.details["jurisdiction"] = IIN_TO_PROVINCE.get(record.iin)
-    result.reasons, result.advisories = licence_gates(record, claimed, now_utc)
+    result.reasons, result.advisories = licence_gates(record, claimed, now_utc, name_threshold, min_age)
     result.details["gates_failed"] = [r.code.value for r in result.reasons]
     result.timings_ms["gates"] = round((time.perf_counter() - t2) * 1000, 1)
     return result, record

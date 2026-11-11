@@ -231,7 +231,7 @@ def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -
         settings.storage_root,
         Cipher(base64.b64decode(settings.storage_key_b64.get_secret_value()), settings.storage_key_id),
     )
-    detector = FaceDetector(registry.face_detector_path)
+    detector = FaceDetector(registry.face_detector_path, settings.face_detect_score)
     embedder_session = registry.session("face_embedder")
     plate_detector, plate_ocr = registry.session("plate_detector"), registry.session("plate_ocr")
 
@@ -249,14 +249,16 @@ def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -
         raise EngineError("LIVENESS_MODEL_MISSING")
 
     stages = Stages(
-        barcode=run_barcode_stage,
+        barcode=lambda back, claimed, now: run_barcode_stage(
+            back, claimed, now, settings.barcode_budget_s, settings.name_match_threshold, settings.min_age
+        ),
         face=lambda selfie, front: run_face_stage(
             selfie, front, detector, lambda crop: embed(crop, embedder_session), liveness, settings
         ),
         vehicle=lambda img, claimed: run_vehicle_stage(
             img,
             claimed,
-            lambda i: detect_plate(i, plate_detector),
+            lambda i: detect_plate(i, plate_detector, settings.plate_detect_score),
             lambda c: read_plate(c, plate_ocr),
             settings,
         ),

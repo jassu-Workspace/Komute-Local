@@ -16,18 +16,18 @@ ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 TEXT_FIELDS = (
     "claimed.full_name", "claimed.licence_number", "claimed.plate_number", "claimed.vehicle_colour",
 )
-MAX_TEXT = 200
+MAX_TEXT = 200  # default; the app passes Settings.max_text_chars
 
 
 def _bad(code: str, message: str) -> ApiError:
     return ApiError(422, code, message)
 
 
-def _text(form: dict[str, str], name: str) -> str:
+def _text(form: dict[str, str], name: str, max_text: int = MAX_TEXT) -> str:
     value = (form.get(name) or "").strip()
     if not value:
         raise _bad("MISSING_FIELD", f"Field {name} is required.")
-    if len(value) > MAX_TEXT:
+    if len(value) > max_text:
         raise _bad("INVALID_FIELD", f"Field {name} is too long.")
     return value
 
@@ -41,7 +41,7 @@ def payload_hash(form: dict[str, str], images: dict[str, bytes]) -> str:
     return h.hexdigest()
 
 
-def build_input(form: dict[str, str], images: dict[str, bytes]) -> VerifyInput:
+def build_input(form: dict[str, str], images: dict[str, bytes], max_text: int = MAX_TEXT) -> VerifyInput:
     request_id, driver_id = (form.get("request_id") or "").strip(), (form.get("driver_id") or "").strip()
     for name, value in (("request_id", request_id), ("driver_id", driver_id)):
         if not value:
@@ -58,10 +58,10 @@ def build_input(form: dict[str, str], images: dict[str, bytes]) -> VerifyInput:
         raise _bad("INVALID_FIELD", "consent_at must be an ISO-8601 timestamp.") from None
     if consent_dt.tzinfo is None:
         raise _bad("INVALID_FIELD", "consent_at must include a time zone.")
-    if len(version) > MAX_TEXT:
+    if len(version) > max_text:
         raise _bad("INVALID_FIELD", "consent_policy_version is too long.")
 
-    text = {name: _text(form, name) for name in TEXT_FIELDS}
+    text = {name: _text(form, name, max_text) for name in TEXT_FIELDS}
     try:
         dob = date.fromisoformat((form.get("claimed.date_of_birth") or "").strip())
     except ValueError:

@@ -210,3 +210,10 @@ def test_no_key_configured_means_open_api(settings):
     assert post(c, key=None).status_code == 200
     assert post(c, {**FIELDS, "request_id": "req-k"}, key="anything").status_code == 200
     assert c.get("/v1/sessions/none").status_code == 404
+
+
+def test_security_headers_on_every_response(settings):
+    client, _ = make(settings)
+    r = client.get("/health")
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+    assert "frame-ancestors 'none'" in r.headers["Content-Security-Policy"]

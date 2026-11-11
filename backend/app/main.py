@@ -21,6 +21,17 @@ from .routes import router
 
 log = logging.getLogger("komute.api")
 
+# The test page is one file with inline script and style, so those two are allowed; nothing else loads from anywhere.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Content-Security-Policy": (
+        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; "
+        "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+    ),
+}
+
 
 def _sweeper(engine: Engine, settings: Settings, stop: threading.Event) -> None:
     policy = RetentionPolicy(
@@ -56,6 +67,12 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
         log.warning("authentication is OFF: no KOMUTE_API_KEY set (local testing only)")
     app.state.engine = engine
     app.include_router(router)
+
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers.update(SECURITY_HEADERS)
+        return response
 
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, e: ApiError) -> JSONResponse:

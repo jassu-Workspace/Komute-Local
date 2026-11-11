@@ -64,3 +64,20 @@ def test_production_rejects_short_api_key_dev_allows_it():
         make(env="production", liveness_model=Path("m.onnx"), api_key="short")
     assert make(api_key="short").env == "dev"
     assert make(env="production", liveness_model=Path("m.onnx"), api_key="k" * 24).env == "production"
+
+
+def test_new_tunables_default_and_are_bounded():
+    s = make()
+    assert (s.name_match_threshold, s.min_age, s.plate_detect_score, s.barcode_budget_s) == (85.0, 18, 0.35, 10.0)
+    for bad in ({"face_match_threshold": 0.01}, {"min_age": 5}, {"name_match_threshold": 10}, {"barcode_budget_s": 0}):
+        with pytest.raises(ValidationError):
+            make(**bad)
+
+
+def test_values_load_from_dotenv_file(tmp_path):
+    f = tmp_path / ".env"
+    f.write_text(
+        f"KOMUTE_STORAGE_ROOT=/var/lib/komute\nKOMUTE_STORAGE_KEY_B64={_key()}\nKOMUTE_STORAGE_KEY_ID=s1\n"
+        f"KOMUTE_MANIFEST_KEY_B64={_key()}\nKOMUTE_MANIFEST_KEY_ID=m1\nKOMUTE_FACE_MATCH_THRESHOLD=0.55\n"
+    )
+    assert Settings(_env_file=f).face_match_threshold == 0.55

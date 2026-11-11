@@ -12,3 +12,5 @@ tests/
 # unused age-estimation models (dropped) are not shipped
 backend/models/genderage.onnx
 backend/models/mivolo_v2_age.onnx
+.env
+.env.*

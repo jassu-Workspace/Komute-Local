@@ -7,12 +7,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="KOMUTE_", extra="ignore")
+    # Real environment variables win over .env. The .env file is git-ignored; see .env.example.
+    model_config = SettingsConfigDict(env_prefix="KOMUTE_", env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     env: Literal["dev", "production"] = "dev"
     api_key: SecretStr | None = None  # unset or empty = no authentication (local testing only)
@@ -24,8 +25,14 @@ class Settings(BaseSettings):
     models_dir: Path = Path("backend/models")
     liveness_model: Path | None = None
     dev_skip_liveness: bool = False
-    face_match_threshold: float = 0.40
-    liveness_threshold: float = 0.5
+    face_match_threshold: float = Field(0.40, ge=0.2, le=0.95)
+    face_detect_score: float = Field(0.7, gt=0, lt=1)
+    liveness_threshold: float = Field(0.5, gt=0, lt=1)
+    name_match_threshold: float = Field(85.0, ge=50, le=100)
+    min_age: int = Field(18, ge=16, le=100)
+    plate_detect_score: float = Field(0.35, gt=0, lt=1)
+    barcode_budget_s: float = Field(10.0, gt=0, le=60)
+    max_text_chars: int = Field(200, ge=20, le=1000)
     # MiniFASNet-style defaults. Unverified until the owner supplies the liveness model file.
     liveness_crop_scale: float = 2.7
     liveness_input_size: int = 80

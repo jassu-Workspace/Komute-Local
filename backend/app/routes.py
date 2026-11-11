@@ -52,7 +52,7 @@ async def verify(request: Request) -> JSONResponse:
         )
     try:
         fields, images = await _read_form(request, request.app.state.settings.max_upload_bytes)
-        inp = build_input(fields, images)
+        inp = build_input(fields, images, request.app.state.settings.max_text_chars)
         response = await run_in_threadpool(request.app.state.engine.verify, inp)
         return JSONResponse(response)
     finally:
