@@ -1,9 +1,10 @@
 """Blob store interface. The pipeline depends on this, never on a concrete store."""
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
+@runtime_checkable
 class BlobStore(Protocol):
     def put(self, key: str, data: bytes) -> None: ...
 

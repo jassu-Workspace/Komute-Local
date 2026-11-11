@@ -1,6 +1,7 @@
 """Encrypted, atomic local-disk blob store."""
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 
@@ -19,7 +20,8 @@ class LocalStore:
             return self._root
         segs = key.split("/")
         # sanitize_folder_name maps ".", "..", "unknown" and bad chars away, so equality rejects them
-        if any(s == "" or s != sanitize_folder_name(s) for s in segs):
+        # .tmp is reserved for in-flight writes: a key named x.tmp would collide with key x
+        if any(s == "" or s != sanitize_folder_name(s) or s.lower().endswith(".tmp") for s in segs):
             raise ValueError("invalid storage key")
         p = self._root.joinpath(*segs).resolve()
         if p != self._root and self._root not in p.parents:
@@ -37,14 +39,23 @@ class LocalStore:
                 os.fsync(f.fileno())
             os.replace(tmp, path)
         except BaseException:
-            tmp.unlink(missing_ok=True)
+            with contextlib.suppress(OSError):
+                tmp.unlink(missing_ok=True)
             raise
+        if os.name != "nt":  # make the rename durable; Windows cannot open directories
+            fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
 
     def get(self, key: str) -> bytes:
         path = self._path(key)
+        if path.is_dir():
+            raise KeyError(key)
         try:
             blob = path.read_bytes()
-        except (FileNotFoundError, IsADirectoryError, NotADirectoryError):
+        except (FileNotFoundError, NotADirectoryError):
             raise KeyError(key) from None
         return self._cipher.decrypt(blob, key.encode())
 
@@ -66,18 +77,18 @@ class LocalStore:
         if prefix == "":
             raise ValueError("refusing to delete the whole store")
         base = self._path(prefix)
-        files = self._files(base)
-        for p in files:
-            p.unlink()
-        if base.is_dir():
-            # deepest first so parents empty out; also sweeps leftover .tmp files' dirs only if empty
-            for d in sorted((d for d in base.rglob("*") if d.is_dir()), reverse=True):
-                try:
-                    d.rmdir()
-                except OSError:
-                    pass
-            try:
-                base.rmdir()
-            except OSError:
-                pass
-        return len(files)
+        if base.is_file():
+            base.unlink()
+            return 1
+        if not base.is_dir():
+            return 0
+        count = 0
+        # crash-left .tmp files hold full ciphertext: delete them too, but do not count them
+        for p in base.rglob("*"):
+            if p.is_file():
+                p.unlink()
+                count += p.suffix != ".tmp"
+        for d in sorted((d for d in base.rglob("*") if d.is_dir()), reverse=True):
+            d.rmdir()
+        base.rmdir()  # raises OSError if anything survived: never report a partial delete
+        return count

@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from storage import Cipher, LocalStore, StorageIntegrityError
+from storage import BlobStore, Cipher, LocalStore, StorageIntegrityError
 
 K = bytes(range(32))
 
@@ -47,7 +47,7 @@ def test_file_swap_detected(store):
 
 @pytest.mark.parametrize(
     "key",
-    ["../x", "a/../../b", "C:\\x", "a//b", "", "/abs", "a/", "a\\b", "C:", ".", "a/./b", "a b"],
+    ["../x", "a/../../b", "C:\\x", "a//b", "", "/abs", "a/", "a\\b", "C:", ".", "a/./b", "a b", "a/b.tmp", "a/B.TMP"],
 )
 def test_rejects_traversal_keys(store, key):
     with pytest.raises(ValueError):
@@ -108,3 +108,44 @@ def test_failed_write_leaves_no_tmp(store, monkeypatch):
     with pytest.raises(OSError):
         store.put("s1/a", b"1")
     assert list(store._root.rglob("*.tmp")) == []
+
+
+def test_delete_prefix_removes_crash_left_tmp(store):
+    store.put("c1/a", b"1")
+    (store._root / "c1" / "b.tmp").write_bytes(b"ciphertext")
+    (store._root / "c1" / "sub").mkdir()
+    (store._root / "c1" / "sub" / "c.tmp").write_bytes(b"ciphertext")
+    assert store.delete_prefix("c1") == 1
+    assert not (store._root / "c1").exists()
+
+
+def test_delete_prefix_raises_if_dir_survives(store, monkeypatch):
+    store.put("c1/a", b"1")
+    monkeypatch.setattr("pathlib.Path.rmdir", lambda self: (_ for _ in ()).throw(OSError("busy")))
+    with pytest.raises(OSError):
+        store.delete_prefix("c1")
+
+
+def test_tmp_collision_impossible(store):
+    store.put("x/a", b"1")
+    with pytest.raises(ValueError):
+        store.put("x/a.tmp", b"2")
+    assert store.get("x/a") == b"1"
+
+
+@pytest.mark.parametrize("op", ["delete_prefix", "list_prefix"])
+def test_prefix_ops_reject_traversal(store, op):
+    with pytest.raises(ValueError):
+        getattr(store, op)("../x")
+
+
+def test_conforms_to_blobstore(store):
+    assert isinstance(store, BlobStore)
+    b: BlobStore = store
+    b.put("a/b", b"1")
+
+
+def test_get_directory_key_is_keyerror(store):
+    store.put("d/a", b"1")
+    with pytest.raises(KeyError):
+        store.get("d")
