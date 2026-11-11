@@ -64,20 +64,39 @@ def _parse_directory(text: str, pos: int, version: int) -> Optional[dict[str, st
     if not count_txt.isdigit():
         return None
     pos += 2
-    fields: dict[str, str] = {}
+    entries: list[tuple[str, int, int]] = []
     for _ in range(int(count_txt)):
         entry = text[pos : pos + 10]
         if len(entry) < 10 or not entry[2:].isdigit():
             return None
-        sub_type, offset, length = entry[:2], int(entry[2:6]), int(entry[6:10])
+        entries.append((entry[:2], int(entry[2:6]), int(entry[6:10])))
         pos += 10
-        body = text[offset : offset + length]
+    directory_end, cursor = pos, pos
+    fields: dict[str, str] = {}
+    for sub_type, offset, length in entries:
+        start = offset
+        if offset < directory_end or not text.startswith(sub_type, offset):
+            # Some issuers write a wrong offset (a real Saskatchewan card says 0). Find the subfile by its marker.
+            start = _find_subfile(text, sub_type, cursor)
+            if start is None:
+                return None
+        body = text[start : start + length]
         if len(body) < 3:
             return None
+        cursor = start + len(body)
         if body.startswith(sub_type):
             body = body[2:]
         fields.update(_scan_elements(body))
     return fields or None
+
+
+def _find_subfile(text: str, sub_type: str, from_pos: int) -> Optional[int]:
+    i = text.find(sub_type, from_pos)
+    while i != -1:
+        if _ELEMENT.match(text[i + 2 : i + 5]):
+            return i
+        i = text.find(sub_type, i + 1)
+    return None
 
 
 @dataclass(frozen=True)
@@ -100,8 +119,12 @@ class AamvaRecord:
             parts = [f["DAC"], "" if middle.upper() == "NONE" else middle, f["DCS"]]
         elif f.get("DCT") and f.get("DCS"):
             parts = [f["DCT"], f["DCS"]]
+        elif f.get("DAA"):
+            parts = [f["DAA"]]
+        elif f.get("ZOA"):
+            parts = [f["ZOA"]]  # Ontario: given names are empty in DAC; ZOA holds the full name
         else:
-            parts = [f.get("DAA", "")]
+            parts = [f.get("DCS", "")]  # some issuers put the whole name in the family-name element
         return " ".join(" ".join(parts).replace(",", " ").split())
 
 

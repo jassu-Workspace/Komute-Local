@@ -92,3 +92,33 @@ def test_date_helpers():
 def test_empty_restriction_value_kept_as_empty_string():
     rec = parse_aamva(make_aamva_text(fields=dict(FAKE_FIELDS, DCB="")))
     assert rec.fields["DCB"] == ""
+
+
+def test_wrong_zero_offset_in_directory_is_relocated_not_read_as_header():
+    # Real issuer quirk: the directory offset is 0 although the subfile starts after the directory.
+    text = make_aamva_text()
+    marker = "DL0042"  # "DL" + 4-digit offset for a 1-subfile v09 card (header 9+6+2+2+2 = 21, +10 entry = 31)
+    start = text.index("DL", 21)
+    bad = text[:start] + "DL0000" + text[start + 6 :]
+    rec = parse_aamva(bad)
+    assert rec is not None and rec.fields["DAQ"] == FAKE_FIELDS["DAQ"]
+    assert "ANS" not in rec.fields and set(rec.fields) == set(FAKE_FIELDS)
+
+
+def test_second_subfile_with_wrong_offset_is_found_after_the_first():
+    text = make_aamva_text(extra_subfiles={"ZO": {"ZOA": "ALEX TESTER,"}})
+    i = text.index("ZO", 21)
+    bad = text[:i] + "ZO0000" + text[i + 6 :]
+    rec = parse_aamva(bad)
+    assert rec.fields["ZOA"] == "ALEX TESTER," and rec.fields["DAQ"] == FAKE_FIELDS["DAQ"]
+
+
+def test_name_from_zoa_when_given_names_empty():
+    f = dict(FAKE_FIELDS, DAC="", DAD="", DCS="TESTER")
+    rec = parse_aamva(make_aamva_text(fields=f, extra_subfiles={"ZO": {"ZOA": "ALEX TESTER,"}}))
+    assert rec.full_name() == "ALEX TESTER"
+
+
+def test_name_from_dcs_only_when_it_holds_the_whole_name():
+    f = dict(FAKE_FIELDS, DAC="", DAD="", DCS="ALEX TESTER")
+    assert parse_aamva(make_aamva_text(fields=f)).full_name() == "ALEX TESTER"
