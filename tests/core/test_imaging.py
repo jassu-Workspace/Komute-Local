@@ -27,12 +27,6 @@ def test_rejects_empty_or_wrong_type(bad):
     assert e.value.code == "INVALID_IMAGE"
 
 
-def test_rejects_empty_bytes():
-    with pytest.raises(InputError) as e:
-        decode_image(b"", 1000)
-    assert e.value.code == "INVALID_IMAGE"
-
-
 def test_rejects_random_bytes():
     data = np.random.default_rng(1).bytes(4096)
     with pytest.raises(InputError) as e:
@@ -77,6 +71,7 @@ def test_keeps_small_image_size():
 def test_grayscale_and_bgra_become_bgr():
     for arr in (np.zeros((20, 30), np.uint8), np.zeros((20, 30, 4), np.uint8)):
         ok, buf = cv2.imencode(".png", arr)
+        assert ok
         out = decode_image(buf.tobytes(), 100)
         assert out.shape == (20, 30, 3) and out.dtype == np.uint8
 
@@ -97,3 +92,9 @@ def test_encode_webp_roundtrip_and_errors():
     assert out.shape == (16, 16, 3)
     with pytest.raises(InputError):
         encode_webp(np.zeros((0, 0, 3), np.uint8), 80)
+
+
+def test_rejects_non_positive_max_side():
+    for bad in (0, -5):
+        with pytest.raises(ValueError):
+            decode_image(_jpeg(10, 10), bad)

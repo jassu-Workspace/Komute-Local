@@ -8,6 +8,8 @@ IMAGE_KEYS = ("selfie", "licence_front", "licence_back", "vehicle")
 
 
 def decode_image(data: bytes, max_side: int) -> np.ndarray:
+    if max_side <= 0:
+        raise ValueError("max_side must be positive")
     if not isinstance(data, (bytes, bytearray, memoryview)) or len(data) == 0:
         raise InputError("INVALID_IMAGE")
     try:
