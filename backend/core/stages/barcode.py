@@ -5,11 +5,17 @@ Image variants are generated one at a time and freed before the next one is buil
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from typing import Callable, Iterator, Optional
 
 import cv2
 import numpy as np
 import zxingcpp
+
+from ..aamva import AamvaRecord, parse_aamva
+from ..contracts import Claimed, Reason, ReasonCode, StageResult
+from ..gates import licence_gates
+from ..policy import IIN_TO_PROVINCE
 
 MAX_VARIANT_PIXELS = 25_000_000
 DEFAULT_BUDGET_S = 10.0
@@ -84,3 +90,30 @@ def decode_pdf417(img_bgr: np.ndarray, budget_s: float = DEFAULT_BUDGET_S) -> Op
         if time.monotonic() > deadline:
             return None
     return None
+
+
+def run_barcode_stage(
+    licence_back: np.ndarray, claimed: Claimed, now_utc: datetime, budget_s: float = DEFAULT_BUDGET_S
+) -> tuple[StageResult, Optional[AamvaRecord]]:
+    """Decode, parse and gate. `details` holds no personal data: the engine seals the record separately."""
+    result = StageResult(name="barcode", ran=True)
+    t0 = time.perf_counter()
+    text = decode_pdf417(licence_back, budget_s=budget_s)
+    t1 = time.perf_counter()
+    result.timings_ms["decode"] = round((t1 - t0) * 1000, 1)
+    result.details = {"readable": text is not None, "aamva": False, "jurisdiction": None, "gates_failed": []}
+    if text is None:
+        result.reasons.append(Reason.of(ReasonCode.BARCODE_UNREADABLE))
+        return result, None
+    record = parse_aamva(text)
+    t2 = time.perf_counter()
+    result.timings_ms["parse"] = round((t2 - t1) * 1000, 1)
+    if record is None:
+        result.reasons.append(Reason.of(ReasonCode.BARCODE_NOT_AAMVA))
+        return result, None
+    result.details["aamva"] = True
+    result.details["jurisdiction"] = IIN_TO_PROVINCE.get(record.iin)
+    result.reasons, result.advisories = licence_gates(record, claimed, now_utc)
+    result.details["gates_failed"] = [r.code.value for r in result.reasons]
+    result.timings_ms["gates"] = round((time.perf_counter() - t2) * 1000, 1)
+    return result, record
