@@ -1,0 +1,15 @@
+# Personal data: never commit
+Original Lisence's/
+samples/
+storage/uploads/
+*.env
+
+# Large model weights (hashes live in backend/models/models.lock)
+backend/models/*.onnx
+
+# Python and tooling
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.superpowers/
