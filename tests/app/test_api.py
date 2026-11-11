@@ -196,3 +196,9 @@ def test_payload_hash_changes_with_any_input(settings):
     files["vehicle"] = jpg(99)
     post(c, files=files)
     assert len({i.payload_sha256 for i in eng.seen}) == 3
+
+
+def test_index_served(settings):
+    c, _ = make(settings)
+    r = c.get("/")
+    assert r.status_code == 200 and "text/html" in r.headers["content-type"] and "Komute-Local" in r.text

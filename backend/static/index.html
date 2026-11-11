@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Komute-Local test page</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#15181d; --muted:#5b6471; --line:#d9dde3; --accent:#1d5fd1;
+          --ok:#116b3a; --okbg:#e3f5ea; --bad:#a3231d; --badbg:#fbe7e6; --warn:#7a5200; --warnbg:#fff3d6; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111418; --card:#1a1f26; --ink:#e8ebf0; --muted:#9aa4b2; --line:#2c333d; --accent:#6ea2ff;
+            --ok:#7fdca2; --okbg:#12301f; --bad:#ff9b94; --badbg:#3a1614; --warn:#f2c46b; --warnbg:#33290f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; display:grid; gap:16px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  h1 { font-size:1.25rem; margin:0 0 4px; } h2 { font-size:1rem; margin:0 0 12px; }
+  p.hint { margin:0; color:var(--muted); font-size:.9rem; }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:4px; }
+  input, select { width:100%; padding:10px; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; }
+  input:focus, select:focus, button:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  button { padding:12px 18px; font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:8px; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  .banner { padding:14px; border-radius:8px; font-weight:700; font-size:1.1rem; }
+  .banner.APPROVED { color:var(--ok); background:var(--okbg); } .banner.REJECTED, .banner.ERROR { color:var(--bad); background:var(--badbg); }
+  ul { margin:8px 0; padding-left:20px; } li { margin:4px 0; }
+  .tag { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:99px; font-size:.75rem; background:var(--warnbg); color:var(--warn); }
+  .adv { color:var(--warn); } pre { overflow:auto; padding:10px; background:var(--bg); border:1px solid var(--line); border-radius:8px; font-size:.8rem; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>Komute-Local verification test page</h1>
+    <p class="hint">For testing only. Images and details go to this server and nowhere else.</p>
+  </section>
+
+  <form id="form" autocomplete="off">
+    <section>
+      <h2>Access</h2>
+      <label for="apiKey">API key</label>
+      <input id="apiKey" type="password" required>
+    </section>
+
+    <section>
+      <h2>Request</h2>
+      <div class="grid">
+        <div><label for="request_id">Request ID</label><input id="request_id" name="request_id" required maxlength="64" pattern="[A-Za-z0-9_\-]+"></div>
+        <div><label for="driver_id">Driver ID</label><input id="driver_id" name="driver_id" required maxlength="64" pattern="[A-Za-z0-9_\-]+" value="driver-1"></div>
+        <div><label for="consent_at">Consent given at (ISO, with time zone)</label><input id="consent_at" name="consent_at" required></div>
+        <div><label for="consent_policy_version">Consent policy version</label><input id="consent_policy_version" name="consent_policy_version" required value="v1"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Claimed details</h2>
+      <div class="grid">
+        <div><label for="full_name">Full legal name</label><input id="full_name" name="claimed.full_name" required></div>
+        <div><label for="dob">Date of birth</label><input id="dob" name="claimed.date_of_birth" type="date" required></div>
+        <div><label for="licence">Licence number</label><input id="licence" name="claimed.licence_number" required></div>
+        <div><label for="province">Issuing province or territory</label>
+          <select id="province" name="claimed.issuing_province" required></select></div>
+        <div><label for="plate">Plate number</label><input id="plate" name="claimed.plate_number" required></div>
+        <div><label for="colour">Vehicle colour</label><input id="colour" name="claimed.vehicle_colour" required></div>
+        <div><label for="make">Vehicle make (optional)</label><input id="make" name="claimed.vehicle_make"></div>
+        <div><label for="model">Vehicle model (optional)</label><input id="model" name="claimed.vehicle_model"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Photos</h2>
+      <div class="grid">
+        <div><label for="selfie">Selfie</label><input id="selfie" name="selfie" type="file" accept="image/*" required></div>
+        <div><label for="licence_front">Licence front</label><input id="licence_front" name="licence_front" type="file" accept="image/*" required></div>
+        <div><label for="licence_back">Licence back (barcode)</label><input id="licence_back" name="licence_back" type="file" accept="image/*" required></div>
+        <div><label for="vehicle">Vehicle with plate</label><input id="vehicle" name="vehicle" type="file" accept="image/*" required></div>
+      </div>
+    </section>
+
+    <section><button id="submit" type="submit">Verify</button></section>
+  </form>
+
+  <section id="result" hidden aria-live="polite">
+    <div id="banner" class="banner"></div>
+    <ul id="reasons"></ul>
+    <ul id="advisories" class="adv"></ul>
+    <p id="timings" class="hint"></p>
+    <details><summary>Raw response</summary><pre id="raw"></pre></details>
+  </section>
+</main>
+
+<script>
+(function () {
+  var PROVINCES = ["ON","QC","BC","AB","MB","SK","NB","NS","NL","PE","YT","NT","NU"];
+  var $ = function (id) { return document.getElementById(id); };
+
+  PROVINCES.forEach(function (p) {
+    var o = document.createElement("option"); o.value = p; o.textContent = p; $("province").appendChild(o);
+  });
+  $("consent_at").value = new Date().toISOString();
+  $("request_id").value = "req-" + Date.now();
+  try { $("apiKey").value = sessionStorage.getItem("kmt_key") || ""; } catch (e) { /* storage may be blocked */ }
+
+  function li(parent, text, tag) {
+    var item = document.createElement("li"); item.textContent = text;
+    if (tag) { var t = document.createElement("span"); t.className = "tag"; t.textContent = tag; item.appendChild(t); }
+    parent.appendChild(item);
+  }
+
+  function show(status, banner, data) {
+    $("result").hidden = false;
+    var b = $("banner"); b.className = "banner " + status; b.textContent = banner;
+    $("reasons").textContent = ""; $("advisories").textContent = ""; $("timings").textContent = "";
+    if (data && data.reasons) data.reasons.forEach(function (r) { li($("reasons"), r.message, r.retryable ? "retake" : "final"); });
+    if (data && data.error) li($("reasons"), data.error.message + " (" + data.error.code + ")");
+    if (data && data.advisories) data.advisories.forEach(function (a) { li($("advisories"), "Advisory: " + a); });
+    if (data && data.timings_ms) $("timings").textContent = "Total " + data.timings_ms.total + " ms, memory " + data.rss_mb + " MB";
+    $("raw").textContent = JSON.stringify(data, null, 2);
+  }
+
+  $("form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var key = $("apiKey").value;
+    try { sessionStorage.setItem("kmt_key", key); } catch (e) { /* ignore */ }
+    var btn = $("submit"); btn.disabled = true; btn.textContent = "Verifying...";
+    fetch("/v1/verify", { method: "POST", headers: { "X-API-Key": key }, body: new FormData($("form")) })
+      .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
+      .then(function (res) {
+        if (res.status === 200) show(res.data.decision, res.data.decision, res.data);
+        else show("ERROR", "Error " + res.status, res.data);
+      })
+      .catch(function () { show("ERROR", "Could not reach the server", { error: { code: "NETWORK", message: "The request failed." } }); })
+      .then(function () { btn.disabled = false; btn.textContent = "Verify"; $("request_id").value = "req-" + Date.now(); });
+  });
+})();
+</script>
+</body>
+</html>
