@@ -13,7 +13,7 @@ def _key(n: int = 32) -> str:
 
 def make(**kw) -> Settings:
     base = dict(
-        api_key="a", storage_root=Path("/var/lib/komute"),
+        api_key="a" * 32, storage_root=Path("/var/lib/komute"),
         storage_key_b64=_key(), storage_key_id="s1",
         manifest_key_b64=_key(), manifest_key_id="m1",
     )
@@ -50,3 +50,10 @@ def test_production_requires_liveness_model():
 def test_storage_root_inside_onedrive_rejected(p):
     with pytest.raises(ValidationError):
         make(storage_root=Path(p))
+
+
+def test_production_rejects_short_api_key_dev_allows_it():
+    with pytest.raises(ValidationError):
+        make(env="production", liveness_model=Path("m.onnx"), api_key="short")
+    assert make(api_key="short").env == "dev"
+    assert make(env="production", liveness_model=Path("m.onnx"), api_key="k" * 24).env == "production"

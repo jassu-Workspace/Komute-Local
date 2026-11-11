@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _production_rules(self) -> Settings:
         if self.env == "production":
+            if len(self.api_key.get_secret_value()) < 24:
+                raise ValueError("api_key must be at least 24 characters in production")
             if self.dev_skip_liveness:
                 raise ValueError("dev_skip_liveness is forbidden in production")
             if self.liveness_model is None:
