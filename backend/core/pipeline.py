@@ -80,6 +80,11 @@ class Engine:
         self._stages = stages
         self._clock = clock
         self._manifest_key = base64.b64decode(settings.manifest_key_b64.get_secret_value())
+        self.health_info: Callable[[], dict] = lambda: {"models_loaded": {}}
+
+    @property
+    def store(self) -> BlobStore:
+        return self._store
 
     def verify(self, inp: VerifyInput) -> dict:
         cached = lookup(self._store, inp.request_id, inp.payload_sha256)  # may raise IdempotencyConflict
@@ -217,4 +222,6 @@ def build_engine(settings: Settings) -> Engine:
         ),
         liveness_skipped=skipped,
     )
-    return Engine(settings, store, stages)
+    engine = Engine(settings, store, stages)
+    engine.health_info = lambda: {"models_loaded": dict(registry.loaded)}
+    return engine

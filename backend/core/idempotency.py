@@ -30,3 +30,13 @@ def lookup(store: BlobStore, request_id: str, payload_sha256: str) -> dict | Non
 def save(store: BlobStore, request_id: str, driver_id: str, payload_sha256: str, response: dict) -> None:
     entry = {"driver_id": driver_id, "payload_sha256": payload_sha256, "response": response}
     store.put(_key(request_id), json.dumps(entry, sort_keys=True).encode("utf-8"))
+
+
+def fetch(store: BlobStore, request_id: str) -> dict | None:
+    """The stored response for a request_id, without a payload check (read-only API)."""
+    try:
+        return json.loads(store.get(_key(request_id)))["response"]
+    except KeyError:
+        return None
+    except (StorageIntegrityError, ValueError):
+        return None
