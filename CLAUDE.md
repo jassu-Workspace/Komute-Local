@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state (read first)
 
-Komüte-Local is a driver and vehicle verification module that a separate host application calls. The repo holds only docs in `docs/`, ONNX weights in `backend/models/`, and one module, `storage/storage_manager.py`. **The backend pipeline, the API and the frontend do not exist yet.** The README and `docs/` describe files that are absent: `backend/app/*`, `backend/core/*`, `hardware_profile.py`, `download_models.py` and `temporary/benchmark_runner.py`. Treat those docs as design intent, not working code. The folder is not a git repository. The design spec is `docs/superpowers/specs/2026-11-11-komute-local-verification-design.md`. The build plan is `docs/superpowers/plans/2026-11-11-komute-local-master-plan.md`. Follow the plan task by task.
+Komüte-Local is a driver and vehicle verification module that a separate host application calls. **It is built:** engine (`backend/core`), REST wrapper (`backend/app`), encrypted storage (`storage/`), one-file test page (`backend/static/index.html`), evaluation and bench scripts (`scripts/`), and tests (`tests/`). Design: `docs/superpowers/specs/2026-11-11-komute-local-verification-design.md`. Build plan: `docs/superpowers/plans/2026-11-11-komute-local-master-plan.md`. Results and open items: `docs/ACCEPTANCE_REPORT.md`. Model facts: `docs/MODEL_FACTS.md`. The folder is a git repository on branch `feat/verification-engine` (no remote; never push).
+
+**Private data:** `Original Lisence's/` holds the owner's real licence photos. It is git-ignored. Never print, log, commit or paste anything read from them (names, numbers, dates, addresses, raw barcode text, face crops). Copies live in `$LOCALAPPDATA/komute/samples/raw/`.
 
 ## Scope (agreed with the owner; do not relitigate)
 
@@ -19,7 +21,7 @@ Komüte-Local is a driver and vehicle verification module that a separate host a
 
 ## Commands
 
-Python 3.12 only (installed by `uv`). The venv lives outside OneDrive. Run every command from the repo root in Git Bash.
+Python 3.12 only (installed by `uv`). The venv lives outside OneDrive. Run from the repo root in Git Bash.
 
 ```bash
 uv python install 3.12
@@ -27,11 +29,15 @@ uv venv --python 3.12 "$LOCALAPPDATA/komute/venv"
 uv pip install --python "$LOCALAPPDATA/komute/venv" -r requirements.txt   # requirements.lock = exact frozen set
 python scripts/make_dev_keys.py          # once; writes $LOCALAPPDATA/komute/dev.env, refuses to overwrite
 source scripts/dev_env.sh                # exports $PY, KOMUTE_* env vars, PYTHONUTF8=1
-"$PY" -m pytest                          # all tests
-"$PY" -m pytest tests/test_smoke.py::test_imports -v   # single test
+"$PY" -m pytest -m "not samples"         # unit + API tests (about 1 minute)
+"$PY" -m pytest tests/e2e                # real-licence end-to-end (needs samples; about 2 minutes)
+"$PY" -m pytest tests/core/test_gates.py::test_underage_17 -v   # single test
+KOMUTE_DEV_SKIP_LIVENESS=true "$PY" -m uvicorn backend.app.main:create_app --factory --workers 1   # keep workers=1
+"$PY" scripts/bench.py --runs 50         # memory and latency on the real cards
+"$PY" scripts/evaluate.py barcode --manifest cards.csv --out docs/calibration/barcode.md
 ```
 
-Markers: `models` (needs ONNX files), `samples` (skipped unless `KOMUTE_SAMPLES_DIR` exists and is non-empty). `numpy` is unpinned (numpy 2 works with all requirements). The API entrypoint (`uvicorn backend.app.main:app --workers 1`) does not exist yet.
+Markers: `models` (needs ONNX files), `samples` (skipped unless `KOMUTE_SAMPLES_DIR` exists and is non-empty). `import backend.core` must come before `import cv2` (it sets the pixel clamp and fails closed otherwise). Do not use `cat <<EOF` with several files in one Bash call: the shell here mis-parses it; write files with the Write tool.
 
 ## Architecture (big picture)
 
@@ -167,12 +173,15 @@ Compared on 2026-11-11 with a secondary copy of the US FMCSA chart (August 2021)
 - **NT:** FMCSA says 9. The owner's pattern allows 5–9.
 - **NU:** FMCSA says 5. The owner's pattern allows 5–6.
 
-## Known gaps between docs and reality
+## Known gaps and open items
 
-- **Memory and latency:** the README claims under 650 MB and 120–160 ms. The docs' own profiling shows a 1.23 GB peak and 855–2600 ms.
-- **Face model:** the docs say AdaFace. The shipped file is `w600k_r50.onnx` (ArcFace). The "98.05% accuracy" figure is unverified.
-- **Plate OCR:** the docs promise a 36-class model. The shipped file has a dictionary of about 6,600 mostly Chinese characters, so output must be masked. Tensor shapes of every model are unverified, because no model has been run.
-- **Storage module:** `storage_manager.py` creates directories and a global singleton at import. The docs disagree on paths (`storage/uploads/drivers/...` versus `storage/sessions/...`). Retention, deletion, encryption and manifest signing are not implemented. The README's "zero-PII" claim contradicts storing originals.
+- **Liveness:** no liveness model file exists. Dev runs skip it (advisory `LIVENESS_SKIPPED_DEV`). `OnnxLiveness` is untested on a real model and its parameters are unverified. Production start requires one.
+- **Face threshold:** 0.40 is provisional. Real data so far is 3 licences, 6 impostor pairs and no selfies. No false-accept or false-reject rate is measured.
+- **Policy tables:** allowed classes exist only for ON (`G`) and QC, BC, AB (`5`). The real NS and SK cards (class `5`) are rejected `CLASS_NOT_ALLOWED` until the owner decides. Allowed restriction codes are empty for every province.
+- **Linux memory:** measured on Windows only (steady about 334 MB, peak about 383 MB). The Docker engine would not start here, so the `Dockerfile` has never been built or run.
+- **Plate OCR and detector:** checked on a rendered plate and a synthetic scene only. No real vehicle photo has been tested.
+- **Docs:** `docs/superpowers/` holds the original spec and plan, which predate several decisions (see the ledger rulings). The other `docs/*.md` files describe the built system.
+- **Not built:** S3 storage, multi-frame liveness, OCR fallback, age estimation, rate limiting (the host's job).
 
 ## Inputs still needed from the owner
 
