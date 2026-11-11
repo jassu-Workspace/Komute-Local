@@ -106,7 +106,7 @@ $names = @($lock.PSObject.Properties.Name)
 $absent = @($names | Where-Object { -not (Test-Path -LiteralPath (Join-Path $ModelsDir $_)) })
 if ($absent.Count -gt 0) {
     Fail ("These model files are missing from $ModelsDir`:`n    " + ($absent -join "`n    ") +
-          "`nThey cannot be downloaded automatically. Copy the licensed files there, then run again.")
+          "`nRun .\install.ps1 to download and hash-verify them, then run again.")
 }
 $verify = "from pathlib import Path; from backend.core.registry import verify_lock; " +
           "verify_lock(Path('backend/models'), Path('backend/models/models.lock'))"

@@ -23,7 +23,7 @@ Komüte-Local is a driver and vehicle verification module that a separate host a
 
 Python 3.12 only (installed by `uv`). The venv lives outside OneDrive. Run from the repo root in Git Bash.
 
-One command does the checks and starts the app on Windows: `.\run.ps1` (`-CheckOnly`, `-Port`, `-NoBrowser`, `-WithApiKey`). It installs missing dependencies from `requirements.txt` with uv and verifies model files against `models.lock`. Manual steps:
+`.\install.ps1` sets up a fresh Windows machine end to end: uv, Python 3.12, venv, `requirements.lock`, the four models (downloaded from their public sources and rejected unless the SHA-256 matches `models.lock`), dev keys, then the tests (`-SkipTests`, `-Force`). One command does the checks and starts the app on Windows: `.\run.ps1` (`-CheckOnly`, `-Port`, `-NoBrowser`, `-WithApiKey`). It installs missing dependencies from `requirements.txt` with uv and verifies model files against `models.lock`. Manual steps:
 
 ```bash
 uv python install 3.12

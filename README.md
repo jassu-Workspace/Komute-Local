@@ -17,6 +17,8 @@ Any failed gate gives `REJECTED` with every reason code, each marked **retryable
 On Windows, one command checks everything and starts it:
 
 ```powershell
+.\install.ps1           # once, on a fresh x64 Windows 10 1809+/Server 2019+ machine: checks RAM, disk and network; installs the Visual C++ runtime (Microsoft signature checked, asks for admin), uv, Python 3.12, the venv, requirements.lock, the 4 models (SHA-256 checked against models.lock), dev keys; then runs the tests
+.\install.ps1 -SkipTests   # same, without the tests; -Force re-downloads models and reinstalls packages
 .\run.ps1               # checks uv, Python 3.12, dependencies (installs missing ones with uv) and model files; starts the backend on port 8000; opens the test page
 .\run.ps1 -CheckOnly    # checks only
 .\run.ps1 -WithApiKey   # require the X-API-Key header (key in %LOCALAPPDATA%\komute\dev.env)

@@ -81,3 +81,7 @@ def test_values_load_from_dotenv_file(tmp_path):
         f"KOMUTE_MANIFEST_KEY_B64={_key()}\nKOMUTE_MANIFEST_KEY_ID=m1\nKOMUTE_FACE_MATCH_THRESHOLD=0.55\n"
     )
     assert Settings(_env_file=f).face_match_threshold == 0.55
+
+
+def test_blank_liveness_model_line_means_none():
+    assert make(liveness_model="").liveness_model is None

@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     def _empty_key_is_no_key(cls, v: SecretStr | None) -> SecretStr | None:
         return v if v is not None and v.get_secret_value() else None
 
+    @field_validator("liveness_model", mode="before")
+    @classmethod
+    def _blank_path_is_none(cls, v):
+        return None if isinstance(v, str) and not v.strip() else v  # a blank .env line must not become Path(".")
+
     @field_validator("storage_key_b64", "manifest_key_b64")
     @classmethod
     def _key_is_32_bytes(cls, v: SecretStr) -> SecretStr:
