@@ -23,7 +23,7 @@ Komüte-Local is a driver and vehicle verification module that a separate host a
 
 Python 3.12 only (installed by `uv`). The venv lives outside OneDrive. Run from the repo root in Git Bash.
 
-One command does the checks and starts the app on Windows: `.un.ps1` (`-CheckOnly`, `-Port`, `-NoBrowser`). It installs missing dependencies from `requirements.txt` with uv and verifies model files against `models.lock`. Manual steps:
+One command does the checks and starts the app on Windows: `.\run.ps1` (`-CheckOnly`, `-Port`, `-NoBrowser`, `-WithApiKey`). It installs missing dependencies from `requirements.txt` with uv and verifies model files against `models.lock`. Manual steps:
 
 ```bash
 uv python install 3.12
@@ -43,7 +43,7 @@ Markers: `models` (needs ONNX files), `samples` (skipped unless `KOMUTE_SAMPLES_
 
 ## Architecture (big picture)
 
-The host sends claimed data (name, date of birth, licence number, issuing province, plate, colour), a consent timestamp with its policy version, and four images (selfie, licence front, licence back, vehicle) to `POST /v1/verify`. Use multipart, not base64, to save RAM. The call is synchronous and idempotent by `request_id`. API-key auth. The engine is a package with no FastAPI imports, so it can also be embedded as a library. The REST layer is a thin wrapper.
+The host sends claimed data (name, date of birth, licence number, issuing province, plate, colour), a consent timestamp with its policy version, and four images (selfie, licence front, licence back, vehicle) to `POST /v1/verify`. Use multipart, not base64, to save RAM. The call is synchronous and idempotent by `request_id`. Authentication is OFF by default (testing); when `KOMUTE_API_KEY` is set the header `X-API-Key` is required. The main team's contract is `docs/INTEGRATION_GUIDE.md`. The engine is a package with no FastAPI imports, so it can also be embedded as a library. The REST layer is a thin wrapper.
 
 Ingest: cap every image to a fixed maximum size on decode, then write the originals to storage before any stage runs, so a crash cannot lose evidence.
 

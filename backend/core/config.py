@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="KOMUTE_", extra="ignore")
 
     env: Literal["dev", "production"] = "dev"
-    api_key: SecretStr
+    api_key: SecretStr | None = None  # unset or empty = no authentication (local testing only)
     storage_root: Path
     storage_key_b64: SecretStr
     storage_key_id: str
@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     rejected_images_ttl_h: int = 72
     approved_originals_ttl_d: int = 30
     sweep_interval_s: int = 3600
+
+    @field_validator("api_key")
+    @classmethod
+    def _empty_key_is_no_key(cls, v: SecretStr | None) -> SecretStr | None:
+        return v if v is not None and v.get_secret_value() else None
 
     @field_validator("storage_key_b64", "manifest_key_b64")
     @classmethod
@@ -63,8 +68,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _production_rules(self) -> Settings:
         if self.env == "production":
-            if len(self.api_key.get_secret_value()) < 24:
-                raise ValueError("api_key must be at least 24 characters in production")
+            if self.api_key is None or len(self.api_key.get_secret_value()) < 24:
+                raise ValueError("api_key (at least 24 characters) is required in production")
             if self.dev_skip_liveness:
                 raise ValueError("dev_skip_liveness is forbidden in production")
             if self.liveness_model is None:

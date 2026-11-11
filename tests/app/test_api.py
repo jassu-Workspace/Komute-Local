@@ -201,4 +201,12 @@ def test_payload_hash_changes_with_any_input(settings):
 def test_index_served(settings):
     c, _ = make(settings)
     r = c.get("/")
-    assert r.status_code == 200 and "text/html" in r.headers["content-type"] and "Komute-Local" in r.text
+    assert r.status_code == 200 and "text/html" in r.headers["content-type"] and "Komute Verify" in r.text
+
+
+def test_no_key_configured_means_open_api(settings):
+    open_settings = settings.model_copy(update={"api_key": None})
+    c, _ = make(open_settings)
+    assert post(c, key=None).status_code == 200
+    assert post(c, {**FIELDS, "request_id": "req-k"}, key="anything").status_code == 200
+    assert c.get("/v1/sessions/none").status_code == 404

@@ -52,6 +52,8 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
     app = FastAPI(title="Komute-Local", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
     app.state.gate = RunGate()
+    if settings.api_key is None:
+        log.warning("authentication is OFF: no KOMUTE_API_KEY set (local testing only)")
     app.state.engine = engine
     app.include_router(router)
 

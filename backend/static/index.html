@@ -3,138 +3,652 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Komute-Local test page</title>
+<meta name="color-scheme" content="light">
+<title>Komute Verify</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --ink:#15181d; --muted:#5b6471; --line:#d9dde3; --accent:#1d5fd1;
-          --ok:#116b3a; --okbg:#e3f5ea; --bad:#a3231d; --badbg:#fbe7e6; --warn:#7a5200; --warnbg:#fff3d6; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#111418; --card:#1a1f26; --ink:#e8ebf0; --muted:#9aa4b2; --line:#2c333d; --accent:#6ea2ff;
-            --ok:#7fdca2; --okbg:#12301f; --bad:#ff9b94; --badbg:#3a1614; --warn:#f2c46b; --warnbg:#33290f; }
+  :root {
+    --paper:#f4f2ed; --card:#ffffff; --sunk:#faf9f6; --ink:#1b1f24; --ink-2:#4a5058; --muted:#6a6f76;
+    --line:#e2dfd6; --line-2:#cfcbc0; --accent:#27407a; --accent-ink:#ffffff; --accent-soft:#e8ecf6;
+    --ok:#17794a; --ok-soft:#e4f3ea; --bad:#b42318; --bad-soft:#fbe9e7; --warn:#8a5b00; --warn-soft:#fbf0d6;
+    --r-s:6px; --r-m:10px; --r-l:14px;
+    --shadow:0 1px 2px rgba(27,31,36,.05), 0 6px 18px -8px rgba(27,31,36,.10);
+    --mono:ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
   }
-  * { box-sizing: border-box; }
-  body { margin:0; padding:16px; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui, sans-serif; }
-  main { max-width:760px; margin:0 auto; display:grid; gap:16px; }
-  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
-  h1 { font-size:1.25rem; margin:0 0 4px; } h2 { font-size:1rem; margin:0 0 12px; }
-  p.hint { margin:0; color:var(--muted); font-size:.9rem; }
-  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); }
-  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:4px; }
-  input, select { width:100%; padding:10px; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; }
-  input:focus, select:focus, button:focus { outline:2px solid var(--accent); outline-offset:1px; }
-  button { padding:12px 18px; font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:8px; cursor:pointer; }
-  button:disabled { opacity:.6; cursor:wait; }
-  .banner { padding:14px; border-radius:8px; font-weight:700; font-size:1.1rem; }
-  .banner.APPROVED { color:var(--ok); background:var(--okbg); } .banner.REJECTED, .banner.ERROR { color:var(--bad); background:var(--badbg); }
-  ul { margin:8px 0; padding-left:20px; } li { margin:4px 0; }
-  .tag { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:99px; font-size:.75rem; background:var(--warnbg); color:var(--warn); }
-  .adv { color:var(--warn); } pre { overflow:auto; padding:10px; background:var(--bg); border:1px solid var(--line); border-radius:8px; font-size:.8rem; }
-  [hidden] { display:none !important; }
+  * { box-sizing:border-box; }
+  html { color-scheme:light; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3,p { margin:0; }
+  button { font:inherit; color:inherit; }
+  .num { font-variant-numeric:tabular-nums; }
+  .mono { font-family:var(--mono); }
+  .sr { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); border:0; white-space:nowrap; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  svg.i { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+
+  /* top bar */
+  .top { position:sticky; top:0; z-index:5; background:rgba(244,242,237,.94); border-bottom:1px solid var(--line); backdrop-filter:blur(6px); }
+  .top-in { max-width:1240px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:16px; }
+  .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+  .mark { width:36px; height:36px; border-radius:9px; background:var(--accent); color:#fff; display:grid; place-items:center; }
+  .mark svg.i { width:21px; height:21px; stroke-width:1.9; }
+  .brand b { display:block; font-size:16px; letter-spacing:-.01em; }
+  .brand span { display:block; font-size:12.5px; color:var(--muted); }
+  .top-right { margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .pill { display:inline-flex; align-items:center; gap:8px; padding:5px 11px; border:1px solid var(--line-2); border-radius:99px; background:var(--card); font-size:13px; color:var(--ink-2); }
+  .pill i { width:8px; height:8px; border-radius:50%; background:var(--muted); }
+  .pill.ok i { background:var(--ok); } .pill.bad i { background:var(--bad); }
+  .pill.note { background:var(--warn-soft); border-color:#ecd9a6; color:var(--warn); }
+  .link-btn { border:0; background:none; color:var(--accent); cursor:pointer; padding:5px 4px; font-size:13px; text-decoration:underline; text-underline-offset:3px; }
+
+  /* layout */
+  .shell { max-width:1240px; margin:0 auto; padding:24px; display:grid; grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr); gap:24px; align-items:start; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r-l); box-shadow:var(--shadow); }
+  .step { padding:22px 24px; border-bottom:1px solid var(--line); }
+  .step:last-of-type { border-bottom:0; }
+  .step-h { display:flex; gap:14px; align-items:flex-start; margin-bottom:16px; }
+  .step-n { width:26px; height:26px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:13px; display:grid; place-items:center; flex:none; margin-top:1px; }
+  .step-h h2 { font-size:16px; letter-spacing:-.005em; }
+  .step-h p { font-size:13.5px; color:var(--muted); margin-top:2px; }
+  .grid { display:grid; gap:14px 16px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .span2 { grid-column:1 / -1; }
+  label.f { display:block; font-size:13px; font-weight:600; color:var(--ink-2); margin-bottom:5px; }
+  label.f small { font-weight:400; color:var(--muted); }
+  input[type=text], input[type=date], input[type=password], select { width:100%; height:42px; padding:0 12px; font:inherit; color:var(--ink); background:var(--card); border:1px solid var(--line-2); border-radius:var(--r-m); }
+  input::placeholder { color:#9aa0a7; }
+  input:hover, select:hover { border-color:#b9b4a6; }
+  input:focus, select:focus { outline:2px solid var(--accent); outline-offset:0; border-color:var(--accent); }
+  .hint { font-size:12.5px; color:var(--muted); margin-top:5px; }
+
+  /* photo drop zones */
+  .drops { display:grid; gap:14px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .drop { position:relative; display:flex; flex-direction:column; border:1.5px dashed var(--line-2); border-radius:var(--r-l); background:var(--sunk); cursor:pointer; overflow:hidden; transition:border-color .15s, background .15s; min-height:178px; }
+  .drop:hover, .drop.over { border-color:var(--accent); background:var(--accent-soft); }
+  .drop.has { border-style:solid; border-color:var(--line-2); background:var(--card); cursor:default; }
+  .drop.flag { border-color:var(--warn); background:var(--warn-soft); animation:nudge .5s; }
+  .drop-empty { margin:auto; padding:18px; text-align:center; }
+  .drop-empty svg.i { width:26px; height:26px; color:var(--accent); }
+  .drop-empty b { display:block; margin-top:8px; font-size:14px; }
+  .drop-empty span { display:block; font-size:12.5px; color:var(--muted); margin-top:3px; }
+  .drop-empty em { display:block; font-style:normal; font-size:12px; color:var(--accent); margin-top:10px; font-weight:600; }
+  .thumb { height:118px; background:#ebe8df center/cover no-repeat; border-bottom:1px solid var(--line); }
+  .drop-meta { padding:10px 12px; display:flex; align-items:center; gap:10px; }
+  .drop-meta b { font-size:13.5px; }
+  .drop-meta span { display:block; font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:190px; }
+  .drop-meta .tick { margin-left:auto; display:flex; gap:4px; }
+  .mini { border:1px solid var(--line-2); background:var(--card); border-radius:var(--r-s); width:30px; height:30px; display:grid; place-items:center; cursor:pointer; color:var(--ink-2); }
+  .mini:hover { border-color:var(--accent); color:var(--accent); }
+  .mini svg.i { width:15px; height:15px; }
+  @keyframes nudge { 0%,100%{transform:none} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+
+  .check { display:flex; gap:10px; align-items:flex-start; font-size:14px; }
+  .check input { width:18px; height:18px; margin-top:2px; accent-color:var(--accent); }
+  .bar { position:sticky; bottom:0; display:flex; align-items:center; gap:14px; padding:16px 24px; background:rgba(255,255,255,.96); border-top:1px solid var(--line); border-radius:0 0 var(--r-l) var(--r-l); }
+  .bar .rid { font-size:12.5px; color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 22px; border:1px solid var(--accent); border-radius:var(--r-m); background:var(--accent); color:var(--accent-ink); font-weight:650; cursor:pointer; }
+  .btn:hover { background:#1f3466; }
+  .btn:disabled { opacity:.65; cursor:progress; }
+  .btn.ghost { background:var(--card); color:var(--ink-2); border-color:var(--line-2); font-weight:600; height:44px; }
+  .btn.ghost:hover { border-color:var(--accent); color:var(--accent); background:var(--card); }
+  .bar .btn:first-of-type { margin-left:auto; }
+
+  /* result panel */
+  .result { position:sticky; top:76px; max-height:calc(100vh - 96px); overflow:auto; }
+  .empty { padding:26px 24px 28px; }
+  .empty h2 { font-size:18px; letter-spacing:-.01em; }
+  .empty p { color:var(--muted); margin-top:6px; font-size:14px; }
+  .empty ol { margin:18px 0 0; padding:0; list-style:none; display:grid; gap:12px; }
+  .empty li { display:flex; gap:12px; font-size:14px; color:var(--ink-2); }
+  .empty li b { display:block; color:var(--ink); }
+  .empty li .step-n { background:var(--sunk); border:1px solid var(--line); color:var(--ink-2); }
+  .run { padding:34px 24px; text-align:center; }
+  .run .spin { width:34px; height:34px; border-radius:50%; border:3px solid var(--accent-soft); border-top-color:var(--accent); margin:0 auto 14px; animation:spin .9s linear infinite; }
+  .run b { font-size:16px; } .run p { color:var(--muted); font-size:13.5px; margin-top:4px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .verdict { padding:22px 24px; border-bottom:1px solid var(--line); border-radius:var(--r-l) var(--r-l) 0 0; display:flex; gap:16px; align-items:center; }
+  .verdict.ok { background:var(--ok-soft); } .verdict.bad { background:var(--bad-soft); } .verdict.err { background:var(--warn-soft); }
+  .v-ic { width:46px; height:46px; border-radius:50%; display:grid; place-items:center; color:#fff; flex:none; }
+  .ok .v-ic { background:var(--ok); } .bad .v-ic { background:var(--bad); } .err .v-ic { background:var(--warn); }
+  .v-ic svg.i { width:24px; height:24px; stroke-width:2.2; }
+  .verdict h2 { font-size:22px; letter-spacing:-.015em; line-height:1.15; }
+  .ok h2 { color:var(--ok); } .bad h2 { color:var(--bad); } .err h2 { color:var(--warn); }
+  .verdict p { font-size:13.5px; color:var(--ink-2); margin-top:3px; }
+  .sec { padding:18px 24px; border-bottom:1px solid var(--line); }
+  .sec:last-child { border-bottom:0; }
+  .sec h3 { font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin-bottom:12px; font-weight:700; }
+  .todo { background:var(--warn-soft); border:1px solid #ecd9a6; border-radius:var(--r-m); padding:12px 14px; font-size:14px; }
+  .todo + .todo { margin-top:8px; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line-2); background:var(--card); border-radius:99px; padding:4px 11px; font-size:13px; font-weight:600; cursor:pointer; color:var(--ink); }
+  .chip:hover { border-color:var(--accent); color:var(--accent); }
+  .reasons { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+  .reasons li { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; }
+  .tag { font-size:11px; font-weight:700; letter-spacing:.04em; padding:2px 8px; border-radius:5px; height:fit-content; margin-top:2px; }
+  .tag.retry { background:var(--warn-soft); color:var(--warn); } .tag.final { background:var(--bad-soft); color:var(--bad); }
+  .reasons b { font-size:14px; } .reasons p { grid-column:2; font-size:13.5px; color:var(--ink-2); }
+  .reasons code { font-family:var(--mono); font-size:11.5px; color:var(--muted); }
+  .stages { display:grid; gap:0; }
+  .stage { display:grid; grid-template-columns:30px 1fr; gap:0 12px; position:relative; padding-bottom:16px; }
+  .stage:last-child { padding-bottom:0; }
+  .stage::before { content:""; position:absolute; left:14px; top:30px; bottom:0; width:2px; background:var(--line); }
+  .stage:last-child::before { display:none; }
+  .s-dot { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; background:var(--card); border:2px solid var(--line-2); color:var(--muted); }
+  .s-dot svg.i { width:15px; height:15px; stroke-width:2.4; }
+  .stage.pass .s-dot { background:var(--ok); border-color:var(--ok); color:#fff; }
+  .stage.fail .s-dot { background:var(--bad); border-color:var(--bad); color:#fff; }
+  .s-body h4 { margin:0; font-size:14.5px; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+  .s-body h4 span { font-size:12.5px; font-weight:500; color:var(--muted); }
+  dl.kv { margin:8px 0 0; display:grid; grid-template-columns:auto 1fr; gap:4px 14px; font-size:13.5px; }
+  dl.kv dt { color:var(--muted); } dl.kv dd { margin:0; text-align:right; }
+  .plate { display:inline-block; font-family:var(--mono); font-weight:700; font-size:18px; letter-spacing:.14em; padding:3px 12px; border:2px solid var(--ink); border-radius:6px; background:#fff; }
+  .swatch { display:inline-block; width:14px; height:14px; border-radius:4px; border:1px solid rgba(0,0,0,.25); vertical-align:-2px; margin-right:6px; }
+  .meter { margin-top:10px; }
+  .m-track { position:relative; height:10px; border-radius:99px; background:#ebe8df; }
+  .m-fill { position:absolute; left:0; top:0; bottom:0; border-radius:99px; background:var(--ok); }
+  .m-fill.low { background:var(--bad); }
+  .m-tick { position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--ink); border-radius:2px; }
+  .m-scale { display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); margin-top:6px; }
+  .stack { display:flex; height:12px; border-radius:99px; overflow:hidden; background:#ebe8df; gap:2px; }
+  .stack i { display:block; height:100%; }
+  .legend { display:flex; gap:6px 16px; flex-wrap:wrap; margin-top:10px; font-size:12.5px; color:var(--ink-2); }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .legend em { width:9px; height:9px; border-radius:3px; display:inline-block; }
+  .adv { background:var(--warn-soft); border:1px solid #ecd9a6; color:var(--warn); border-radius:var(--r-m); padding:10px 12px; font-size:13.5px; }
+  .adv + .adv { margin-top:8px; }
+  .hist { width:100%; border-collapse:collapse; font-size:13px; }
+  .hist td { padding:7px 4px; border-top:1px solid var(--line); }
+  .hist tr:first-child td { border-top:0; }
+  .hist button { border:0; background:none; cursor:pointer; color:var(--accent); text-decoration:underline; text-underline-offset:3px; font-size:13px; padding:0; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  details.raw summary { cursor:pointer; font-size:13.5px; font-weight:600; color:var(--ink-2); }
+  details.raw pre { margin:10px 0 0; padding:12px; background:var(--sunk); border:1px solid var(--line); border-radius:var(--r-m); font:12px/1.5 var(--mono); max-height:280px; overflow:auto; white-space:pre-wrap; word-break:break-word; }
+  .raw-bar { display:flex; justify-content:flex-end; margin-top:8px; }
+  .conn { display:none; }
+  .conn.open { display:block; }
+  .conn-in { max-width:1240px; margin:0 auto; padding:14px 24px 16px; background:var(--card); border-bottom:1px solid var(--line); display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end; }
+  .conn-in > div { min-width:260px; flex:1; }
+
+  @media (max-width:980px) { .shell { grid-template-columns:1fr; } .result { position:static; max-height:none; } }
+  @media (max-width:560px) {
+    .shell { padding:14px; } .top-in { padding:10px 14px; } .step { padding:18px 16px; } .bar { padding:14px 16px; flex-wrap:wrap; }
+    .grid, .drops { grid-template-columns:1fr; } .sec, .verdict { padding-left:16px; padding-right:16px; }
+    .brand span { display:none; }
+    .top-in { flex-wrap:wrap; gap:8px; } .brand { width:100%; } .top-right { margin-left:0; justify-content:flex-start; }
+    .bar .rid { display:none; } .bar { flex-wrap:nowrap; gap:10px; } .bar .btn { flex:1; padding:0 12px; } .bar .btn:first-of-type { margin-left:0; }
+    .bar .btn.ghost { flex:0 0 auto; } .conn-in > div { min-width:100%; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
 </style>
 </head>
 <body>
-<main>
-  <section>
-    <h1>Komute-Local verification test page</h1>
-    <p class="hint">For testing only. Images and details go to this server and nowhere else.</p>
-  </section>
 
-  <form id="form" autocomplete="off">
-    <section>
-      <h2>Access</h2>
-      <label for="apiKey">API key</label>
-      <input id="apiKey" type="password" required>
-    </section>
+<template id="ic-shield"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5.5c0 4.2-2.8 7.4-7 9.5-4.2-2.1-7-5.3-7-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg></template>
+<template id="ic-check"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></template>
+<template id="ic-x"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></template>
+<template id="ic-dash"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg></template>
+<template id="ic-alert"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.4v.1"/></svg></template>
+<template id="ic-camera"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg></template>
+<template id="ic-idcard"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6.5 16c.6-1.6 1.7-2.4 2.5-2.4s1.9.8 2.5 2.4M14 10h4M14 13h4"/></svg></template>
+<template id="ic-barcode"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8v8M10 8v8M13 8v8M16 8v8"/></svg></template>
+<template id="ic-car"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3l2-5h12l2 5v3zM4 15h16M7 15v3.5M17 15v3.5"/></svg></template>
+<template id="ic-swap"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 10-2.5 5.8M20 5v5h-5"/></svg></template>
+<template id="ic-copy"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a1 1 0 011-1h9"/></svg></template>
 
-    <section>
-      <h2>Request</h2>
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <div class="mark" id="logo"></div>
+      <div><b>Komute Verify</b><span>Local verification node</span></div>
+    </div>
+    <div class="top-right">
+      <span class="pill" id="health"><i></i><span id="healthText">Checking node</span></span>
+      <span class="pill note" id="liveNote" hidden>Liveness not loaded (testing)</span>
+      <button class="link-btn" type="button" id="connBtn" aria-expanded="false" aria-controls="conn">Connection</button>
+    </div>
+  </div>
+  <div class="conn" id="conn">
+    <div class="conn-in">
+      <div>
+        <label class="f" for="nodeUrl">Node address</label>
+        <input id="nodeUrl" type="text" readonly>
+        <p class="hint">The page talks to the node it was loaded from. Other apps call this same address.</p>
+      </div>
+      <div>
+        <label class="f" for="apiKey">API key <small>(only if this node requires one)</small></label>
+        <input id="apiKey" type="password" autocomplete="off" placeholder="Leave empty when authentication is off">
+        <p class="hint">Sent as the X-API-Key header. Kept for this browser tab only.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <form id="form" class="card" autocomplete="off" novalidate>
+    <section class="step">
+      <div class="step-h"><span class="step-n">1</span><div><h2>Driver and licence</h2><p>What the applicant claims. The node checks these against the licence barcode.</p></div></div>
       <div class="grid">
-        <div><label for="request_id">Request ID</label><input id="request_id" name="request_id" required maxlength="64" pattern="[A-Za-z0-9_\-]+"></div>
-        <div><label for="driver_id">Driver ID</label><input id="driver_id" name="driver_id" required maxlength="64" pattern="[A-Za-z0-9_\-]+" value="driver-1"></div>
-        <div><label for="consent_at">Consent given at (ISO, with time zone)</label><input id="consent_at" name="consent_at" required></div>
-        <div><label for="consent_policy_version">Consent policy version</label><input id="consent_policy_version" name="consent_policy_version" required value="v1"></div>
+        <div class="span2"><label class="f" for="full_name">Full legal name</label><input id="full_name" name="claimed.full_name" type="text" required placeholder="As printed on the licence"></div>
+        <div><label class="f" for="dob">Date of birth</label><input id="dob" name="claimed.date_of_birth" type="date" required></div>
+        <div><label class="f" for="province">Issuing province or territory</label><select id="province" name="claimed.issuing_province" required></select></div>
+        <div class="span2"><label class="f" for="licence">Licence number</label><input id="licence" name="claimed.licence_number" type="text" required placeholder="Hyphens and spaces are fine"></div>
       </div>
     </section>
 
-    <section>
-      <h2>Claimed details</h2>
+    <section class="step">
+      <div class="step-h"><span class="step-n">2</span><div><h2>Vehicle</h2><p>The plate is read from the photo and compared. Colour is advisory.</p></div></div>
       <div class="grid">
-        <div><label for="full_name">Full legal name</label><input id="full_name" name="claimed.full_name" required></div>
-        <div><label for="dob">Date of birth</label><input id="dob" name="claimed.date_of_birth" type="date" required></div>
-        <div><label for="licence">Licence number</label><input id="licence" name="claimed.licence_number" required></div>
-        <div><label for="province">Issuing province or territory</label>
-          <select id="province" name="claimed.issuing_province" required></select></div>
-        <div><label for="plate">Plate number</label><input id="plate" name="claimed.plate_number" required></div>
-        <div><label for="colour">Vehicle colour</label><input id="colour" name="claimed.vehicle_colour" required></div>
-        <div><label for="make">Vehicle make (optional)</label><input id="make" name="claimed.vehicle_make"></div>
-        <div><label for="model">Vehicle model (optional)</label><input id="model" name="claimed.vehicle_model"></div>
+        <div><label class="f" for="plate">Plate number</label><input id="plate" name="claimed.plate_number" type="text" required placeholder="ABCD 123"></div>
+        <div><label class="f" for="colour">Body colour</label><input id="colour" name="claimed.vehicle_colour" type="text" required placeholder="Grey"></div>
+        <div><label class="f" for="make">Make <small>(optional)</small></label><input id="make" name="claimed.vehicle_make" type="text"></div>
+        <div><label class="f" for="model">Model <small>(optional)</small></label><input id="model" name="claimed.vehicle_model" type="text"></div>
       </div>
     </section>
 
-    <section>
-      <h2>Photos</h2>
-      <div class="grid">
-        <div><label for="selfie">Selfie</label><input id="selfie" name="selfie" type="file" accept="image/*" required></div>
-        <div><label for="licence_front">Licence front</label><input id="licence_front" name="licence_front" type="file" accept="image/*" required></div>
-        <div><label for="licence_back">Licence back (barcode)</label><input id="licence_back" name="licence_back" type="file" accept="image/*" required></div>
-        <div><label for="vehicle">Vehicle with plate</label><input id="vehicle" name="vehicle" type="file" accept="image/*" required></div>
+    <section class="step">
+      <div class="step-h"><span class="step-n">3</span><div><h2>Photos</h2><p>Four photos. Drop a file on a card or click it. JPEG, PNG or WebP, up to 10 MB each.</p></div></div>
+      <div class="drops">
+        <label class="drop" for="selfie" data-key="selfie" data-title="Selfie" data-tip="Face the camera in good light" data-icon="ic-camera">
+          <input class="sr" id="selfie" name="selfie" type="file" accept="image/*" required>
+        </label>
+        <label class="drop" for="licence_front" data-key="licence_front" data-title="Licence front" data-tip="Whole card, portrait visible" data-icon="ic-idcard">
+          <input class="sr" id="licence_front" name="licence_front" type="file" accept="image/*" required>
+        </label>
+        <label class="drop" for="licence_back" data-key="licence_back" data-title="Licence back" data-tip="Barcode flat, sharp and fully in frame" data-icon="ic-barcode">
+          <input class="sr" id="licence_back" name="licence_back" type="file" accept="image/*" required>
+        </label>
+        <label class="drop" for="vehicle" data-key="vehicle" data-title="Vehicle" data-tip="Plate clearly visible and level" data-icon="ic-car">
+          <input class="sr" id="vehicle" name="vehicle" type="file" accept="image/*" required>
+        </label>
       </div>
     </section>
 
-    <section><button id="submit" type="submit">Verify</button></section>
+    <section class="step">
+      <div class="step-h"><span class="step-n">4</span><div><h2>Request</h2><p>Identifiers and the biometric consent record that travel with every request.</p></div></div>
+      <div class="grid">
+        <div><label class="f" for="request_id">Request ID</label><input id="request_id" name="request_id" type="text" required maxlength="64" pattern="[A-Za-z0-9_-]+"></div>
+        <div><label class="f" for="driver_id">Driver ID</label><input id="driver_id" name="driver_id" type="text" required maxlength="64" pattern="[A-Za-z0-9_-]+" value="driver-1"></div>
+        <div><label class="f" for="consent_at">Consent given at</label><input id="consent_at" name="consent_at" type="text" required><p class="hint">ISO time with a time zone</p></div>
+        <div><label class="f" for="consent_policy_version">Consent policy version</label><input id="consent_policy_version" name="consent_policy_version" type="text" required value="v1"></div>
+        <div class="span2"><label class="check" for="consented"><input id="consented" type="checkbox"><span>The driver has agreed to biometric processing under this policy version.</span></label></div>
+      </div>
+    </section>
+
+    <div class="bar">
+      <span class="rid mono" id="ridNote"></span>
+      <button class="btn ghost" type="button" id="clearBtn">Clear form</button>
+      <button class="btn" type="submit" id="submit">Run verification</button>
+    </div>
   </form>
 
-  <section id="result" hidden aria-live="polite">
-    <div id="banner" class="banner"></div>
-    <ul id="reasons"></ul>
-    <ul id="advisories" class="adv"></ul>
-    <p id="timings" class="hint"></p>
-    <details><summary>Raw response</summary><pre id="raw"></pre></details>
-  </section>
+  <aside class="card result" id="result" aria-live="polite" aria-label="Verification result" tabindex="-1"></aside>
 </main>
 
 <script>
 (function () {
+  "use strict";
   var PROVINCES = ["ON","QC","BC","AB","MB","SK","NB","NS","NL","PE","YT","NT","NU"];
+  var NAMES = { ON:"Ontario", QC:"Quebec", BC:"British Columbia", AB:"Alberta", MB:"Manitoba", SK:"Saskatchewan",
+    NB:"New Brunswick", NS:"Nova Scotia", NL:"Newfoundland and Labrador", PE:"Prince Edward Island",
+    YT:"Yukon", NT:"Northwest Territories", NU:"Nunavut" };
+  var PHOTO = { selfie:"Selfie", licence_front:"Licence front", licence_back:"Licence back", vehicle:"Vehicle photo" };
+  var RETAKE = { BARCODE_UNREADABLE:"licence_back", BARCODE_NOT_AAMVA:"licence_back", FACE_NOT_FOUND_SELFIE:"selfie",
+    LIVENESS_FAILED:"selfie", IMAGE_QUALITY:"selfie", FACE_NOT_FOUND_LICENCE:"licence_front",
+    PLATE_NOT_FOUND:"vehicle", PLATE_UNREADABLE:"vehicle" };
+  var TITLE = { BARCODE_UNREADABLE:"Barcode not readable", BARCODE_NOT_AAMVA:"Not a licence barcode",
+    JURISDICTION_MISMATCH:"Issuing province does not match", NAME_MISMATCH:"Name does not match the card",
+    DOB_MISMATCH:"Date of birth does not match", LICENCE_NUMBER_MISMATCH:"Licence number does not match",
+    LICENCE_EXPIRED:"Licence expired", UNDERAGE:"Under the minimum age", CLASS_NOT_ALLOWED:"Licence class not accepted",
+    RESTRICTION_NOT_ALLOWED:"Licence restriction not accepted", RESTRICTION_UNKNOWN:"Unrecognised licence restriction",
+    FACE_NOT_FOUND_SELFIE:"No face found in the selfie", FACE_NOT_FOUND_LICENCE:"No face found on the licence",
+    IMAGE_QUALITY:"Selfie quality problem", LIVENESS_FAILED:"Live person not confirmed",
+    FACE_MISMATCH:"Face does not match the licence", PLATE_NOT_FOUND:"No plate found",
+    PLATE_UNREADABLE:"Plate not readable", PLATE_MISMATCH:"Plate does not match" };
+  var STAGE_OF = { BARCODE_UNREADABLE:"barcode", BARCODE_NOT_AAMVA:"barcode", JURISDICTION_MISMATCH:"barcode",
+    NAME_MISMATCH:"barcode", DOB_MISMATCH:"barcode", LICENCE_NUMBER_MISMATCH:"barcode", LICENCE_EXPIRED:"barcode",
+    UNDERAGE:"barcode", CLASS_NOT_ALLOWED:"barcode", RESTRICTION_NOT_ALLOWED:"barcode", RESTRICTION_UNKNOWN:"barcode",
+    FACE_NOT_FOUND_SELFIE:"face", FACE_NOT_FOUND_LICENCE:"face", IMAGE_QUALITY:"face", LIVENESS_FAILED:"face",
+    FACE_MISMATCH:"face", PLATE_NOT_FOUND:"vehicle", PLATE_UNREADABLE:"vehicle", PLATE_MISMATCH:"vehicle" };
+  var COLOURS = { barcode:"#27407a", face:"#17794a", vehicle:"#b7791f", rest:"#b8b3a4" };
+  var MAX_BYTES = 10000000;
+
   var $ = function (id) { return document.getElementById(id); };
+  var history = [];
 
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null) n.textContent = text;
+    return n;
+  }
+  function add(parent) {
+    for (var i = 1; i < arguments.length; i++) if (arguments[i]) parent.appendChild(arguments[i]);
+    return parent;
+  }
+  function icon(name) { return $(name).content.firstElementChild.cloneNode(true); }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function kv(rows) {
+    var dl = el("dl", "kv");
+    rows.forEach(function (r) { add(dl, el("dt", null, r[0]), r[1] instanceof Node ? add(el("dd"), r[1]) : el("dd", null, r[1])); });
+    return dl;
+  }
+  function size(n) { return n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function nowIso() {
+    var d = new Date(), off = -d.getTimezoneOffset(), s = off < 0 ? "-" : "+", a = Math.abs(off);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) + "T" + pad2(d.getHours()) + ":" +
+      pad2(d.getMinutes()) + ":" + pad2(d.getSeconds()) + s + pad2(Math.floor(a / 60)) + ":" + pad2(a % 60);
+  }
+  function newRequestId() { return "req-" + Date.now().toString(36); }
+
+  /* ---------- setup ---------- */
+  $("logo").appendChild(icon("ic-shield"));
   PROVINCES.forEach(function (p) {
-    var o = document.createElement("option"); o.value = p; o.textContent = p; $("province").appendChild(o);
+    var o = el("option", null, p + " · " + NAMES[p]); o.value = p; $("province").appendChild(o);
   });
-  $("consent_at").value = new Date().toISOString();
-  $("request_id").value = "req-" + Date.now();
+  $("nodeUrl").value = location.origin;
   try { $("apiKey").value = sessionStorage.getItem("kmt_key") || ""; } catch (e) { /* storage may be blocked */ }
+  function resetRequest() {
+    $("request_id").value = newRequestId(); $("consent_at").value = nowIso(); $("ridNote").textContent = $("request_id").value;
+  }
+  resetRequest();
+  $("request_id").addEventListener("input", function () { $("ridNote").textContent = $("request_id").value; });
+  $("connBtn").addEventListener("click", function () {
+    var open = $("conn").classList.toggle("open"); $("connBtn").setAttribute("aria-expanded", String(open));
+  });
 
-  function li(parent, text, tag) {
-    var item = document.createElement("li"); item.textContent = text;
-    if (tag) { var t = document.createElement("span"); t.className = "tag"; t.textContent = tag; item.appendChild(t); }
-    parent.appendChild(item);
+  /* ---------- photo drop zones ---------- */
+  function paintDrop(zone) {
+    var input = zone.querySelector("input"), file = input.files && input.files[0];
+    Array.prototype.slice.call(zone.children).forEach(function (c) { if (c !== input) zone.removeChild(c); });
+    zone.classList.toggle("has", !!file);
+    zone.classList.remove("flag");
+    if (!file) {
+      var e = el("div", "drop-empty");
+      add(e, icon(zone.dataset.icon), el("b", null, zone.dataset.title), el("span", null, zone.dataset.tip), el("em", null, "Drop a file or click to choose"));
+      zone.appendChild(e);
+      return;
+    }
+    var t = el("div", "thumb");
+    t.style.backgroundImage = "url(" + URL.createObjectURL(file) + ")";
+    var meta = el("div", "drop-meta"), txt = el("div");
+    add(txt, el("b", null, zone.dataset.title), el("span", null, file.name + "  ·  " + size(file.size)));
+    var tools = el("div", "tick");
+    var swap = el("button", "mini"); swap.type = "button"; swap.title = "Replace this photo"; swap.setAttribute("aria-label", "Replace " + zone.dataset.title);
+    swap.appendChild(icon("ic-swap")); swap.addEventListener("click", function (ev) { ev.preventDefault(); input.click(); });
+    var rm = el("button", "mini"); rm.type = "button"; rm.title = "Remove this photo"; rm.setAttribute("aria-label", "Remove " + zone.dataset.title);
+    rm.appendChild(icon("ic-x")); rm.addEventListener("click", function (ev) { ev.preventDefault(); input.value = ""; paintDrop(zone); });
+    add(tools, swap, rm); add(meta, txt, tools); add(zone, t, meta);
+    if (file.size > MAX_BYTES) zone.classList.add("flag");
+  }
+  Array.prototype.forEach.call(document.querySelectorAll(".drop"), function (zone) {
+    var input = zone.querySelector("input");
+    paintDrop(zone);
+    input.addEventListener("change", function () { paintDrop(zone); });
+    ["dragenter", "dragover"].forEach(function (n) { zone.addEventListener(n, function (e) { e.preventDefault(); zone.classList.add("over"); }); });
+    ["dragleave", "drop"].forEach(function (n) { zone.addEventListener(n, function (e) { e.preventDefault(); zone.classList.remove("over"); }); });
+    zone.addEventListener("drop", function (e) {
+      if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; paintDrop(zone); }
+    });
+  });
+  function flagPhoto(key) {
+    var z = document.querySelector('.drop[data-key="' + key + '"]');
+    if (!z) return;
+    z.scrollIntoView({ behavior: "smooth", block: "center" });
+    z.classList.remove("flag"); void z.offsetWidth; z.classList.add("flag");
   }
 
-  function show(status, banner, data) {
-    $("result").hidden = false;
-    var b = $("banner"); b.className = "banner " + status; b.textContent = banner;
-    $("reasons").textContent = ""; $("advisories").textContent = ""; $("timings").textContent = "";
-    if (data && data.reasons) data.reasons.forEach(function (r) { li($("reasons"), r.message, r.retryable ? "retake" : "final"); });
-    if (data && data.error) li($("reasons"), data.error.message + " (" + data.error.code + ")");
-    if (data && data.advisories) data.advisories.forEach(function (a) { li($("advisories"), "Advisory: " + a); });
-    if (data && data.timings_ms) $("timings").textContent = "Total " + data.timings_ms.total + " ms, memory " + data.rss_mb + " MB";
-    $("raw").textContent = JSON.stringify(data, null, 2);
+  /* ---------- health ---------- */
+  function refreshHealth() {
+    fetch("/health").then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); }).then(function (x) {
+      var h = $("health");
+      h.className = "pill " + (x.ok ? "ok" : "bad");
+      var n = x.d.models_loaded ? Object.keys(x.d.models_loaded).filter(function (k) { return x.d.models_loaded[k]; }).length : 0;
+      $("healthText").textContent = (x.ok ? "Node ready" : "Node degraded") + "  ·  " + n + " models  ·  " + x.d.rss_mb + " MB";
+      $("liveNote").hidden = !(x.d.models_loaded && x.d.models_loaded.liveness === false);
+    }).catch(function () { $("health").className = "pill bad"; $("healthText").textContent = "Node unreachable"; });
+  }
+  refreshHealth(); setInterval(refreshHealth, 15000);
+
+  /* ---------- result rendering ---------- */
+  var panel = $("result");
+  function showEmpty() {
+    clear(panel);
+    var e = el("div", "empty");
+    add(e, el("h2", null, "Result"), el("p", null, "Fill in the request, add four photos and run it. The decision appears here."));
+    var ol = el("ol");
+    [["Barcode", "The licence barcode is decoded and checked against what the driver claimed."],
+     ["Face", "The selfie is checked for a live person and matched to the licence photo."],
+     ["Vehicle", "The plate is read and compared. Body colour is advisory."]].forEach(function (s, i) {
+      var li = el("li"), n = el("span", "step-n", String(i + 1)), d = el("div");
+      add(d, el("b", null, s[0]), el("span", null, s[1])); add(li, n, d); add(ol, li);
+    });
+    add(e, ol); panel.appendChild(e);
+    if (history.length) panel.appendChild(historySection());
+  }
+  function showRunning() {
+    clear(panel);
+    var r = el("div", "run"); r.appendChild(el("div", "spin"));
+    var sec = el("b", null, "Verifying"), p = el("p", null, "Barcode, face and vehicle checks are running. This usually takes a few seconds.");
+    add(r, sec, p); panel.appendChild(r);
+  }
+  function verdict(cls, iconName, title, sub) {
+    var v = el("div", "verdict " + cls), ic = el("div", "v-ic"); ic.appendChild(icon(iconName));
+    var t = el("div"); add(t, el("h2", null, title), el("p", null, sub)); add(v, ic, t); return v;
+  }
+  function section(title) { var s = el("section", "sec"); s.appendChild(el("h3", null, title)); return s; }
+
+  function stageStatus(name, data, failedStages) {
+    var st = data.stages && data.stages[name];
+    if (!st || !st.ran) return "skip";
+    return failedStages[name] ? "fail" : "pass";
+  }
+  function stageCard(name, label, data, failedStages) {
+    var st = (data.stages && data.stages[name]) || { ran: false }, status = stageStatus(name, data, failedStages);
+    var wrap = el("div", "stage " + status), dot = el("div", "s-dot");
+    dot.appendChild(icon(status === "pass" ? "ic-check" : status === "fail" ? "ic-x" : "ic-dash"));
+    var body = el("div", "s-body"), h = el("h4", null, label);
+    h.appendChild(el("span", null, status === "pass" ? "Passed" : status === "fail" ? "Needs attention" : "Not run"));
+    body.appendChild(h);
+    if (!st.ran) {
+      body.appendChild(el("p", "hint", "Skipped because an earlier check failed."));
+    } else if (name === "barcode") {
+      var rows = [["Barcode read", st.readable ? "Yes" : "No"]];
+      if (st.readable) rows.push(["Format", st.aamva ? "Licence barcode (AAMVA)" : "Not a licence barcode"]);
+      if (st.jurisdiction) rows.push(["Issued by", NAMES[st.jurisdiction] || st.jurisdiction]);
+      if (st.readable && st.aamva) rows.push(["Licence rules", (st.gates_failed && st.gates_failed.length) ? st.gates_failed.length + " not met" : "All met"]);
+      body.appendChild(kv(rows));
+    } else if (name === "face") {
+      var rows2 = [];
+      if (st.liveness_score !== undefined) rows2.push(["Live person score", st.liveness_score.toFixed(2) + "  (needs " + st.liveness_threshold.toFixed(2) + ")"]);
+      if (st.similarity !== undefined) rows2.push(["Similarity", st.similarity.toFixed(3)]);
+      if (rows2.length) body.appendChild(kv(rows2));
+      if (st.similarity !== undefined) body.appendChild(meter(st.similarity, st.threshold));
+    } else if (name === "vehicle") {
+      if (st.plate_found) {
+        var pl = el("div"); pl.style.margin = "8px 0 2px";
+        pl.appendChild(st.plate_read ? el("span", "plate", st.plate_read) : el("p", "hint", "The plate was found but its text could not be read."));
+        body.appendChild(pl);
+        var rows3 = [["Plate matches claim", st.plate_matched ? "Yes" : "No"], ["Read confidence", Math.round((st.plate_confidence || 0) * 100) + "%"]];
+        if (st.colour) {
+          var sw = el("span"); var s = el("span", "swatch"); s.style.background = st.colour_hex; add(sw, s, document.createTextNode(st.colour));
+          rows3.push(["Body colour", sw]);
+        }
+        body.appendChild(kv(rows3));
+      } else { body.appendChild(el("p", "hint", "No licence plate was found in the photo.")); }
+    }
+    add(wrap, dot, body); return wrap;
+  }
+  function meter(value, threshold) {
+    var lo = -0.2, hi = 1, pct = function (v) { return Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)); };
+    var m = el("div", "meter"), track = el("div", "m-track"), fill = el("div", "m-fill" + (value >= threshold ? "" : " low"));
+    fill.style.width = pct(value) + "%";
+    var tick = el("div", "m-tick"); tick.style.left = pct(threshold) + "%";
+    add(track, fill, tick);
+    var sc = el("div", "m-scale"); add(sc, el("span", null, "-0.2"), el("span", null, "threshold " + threshold.toFixed(2)), el("span", null, "1.0"));
+    m.setAttribute("role", "img"); m.setAttribute("aria-label", "Similarity " + value.toFixed(3) + ", threshold " + threshold.toFixed(2));
+    add(m, track, sc); return m;
+  }
+  function timing(data) {
+    var t = data.timings_ms || {}, total = t.total || 0, parts = [["barcode", "Barcode"], ["face", "Face"], ["vehicle", "Vehicle"]];
+    var used = 0; parts.forEach(function (p) { used += t[p[0]] || 0; });
+    var rest = Math.max(0, total - used), stack = el("div", "stack"), legend = el("div", "legend");
+    parts.concat([["rest", "Saving and audit"]]).forEach(function (p) {
+      var ms = p[0] === "rest" ? rest : (t[p[0]] || 0);
+      var seg = el("i"); seg.style.width = (total ? ms / total * 100 : 0) + "%"; seg.style.background = COLOURS[p[0]]; stack.appendChild(seg);
+      var lg = el("span"), sw = el("em"); sw.style.background = COLOURS[p[0]];
+      add(lg, sw, document.createTextNode(p[1] + " " + Math.round(ms) + " ms")); legend.appendChild(lg);
+    });
+    var s = section("Time and memory");
+    var head = kv([["Total", (total / 1000).toFixed(2) + " s"], ["Node memory", Math.round(data.rss_mb || 0) + " MB"]]);
+    add(s, head, el("div")); s.lastChild.style.height = "10px"; add(s, stack, legend); return s;
+  }
+  function rawSection(data) {
+    var s = el("section", "sec"), d = el("details", "raw"), sm = el("summary", null, "Raw response");
+    var pre = el("pre", null, JSON.stringify(data, null, 2));
+    var bar = el("div", "raw-bar"), cp = el("button", "btn ghost", "Copy JSON"); cp.type = "button"; cp.style.height = "34px"; cp.style.padding = "0 14px";
+    cp.addEventListener("click", function () {
+      var done = function () { cp.textContent = "Copied"; setTimeout(function () { cp.textContent = "Copy JSON"; }, 1400); };
+      if (navigator.clipboard) navigator.clipboard.writeText(pre.textContent).then(done, function () {});
+    });
+    add(bar, cp); add(d, sm, pre, bar); s.appendChild(d); return s;
+  }
+  function historySection() {
+    var s = section("This session"), tb = el("table", "hist"), body = el("tbody");
+    history.slice().reverse().forEach(function (h) {
+      var tr = el("tr"), c1 = el("td"), c2 = el("td"), c3 = el("td");
+      var dot = el("i", "dot"); dot.style.background = h.kind === "ok" ? "var(--ok)" : h.kind === "bad" ? "var(--bad)" : "var(--warn)";
+      add(c1, dot, document.createTextNode(h.label)); c2.appendChild(el("span", "mono num", h.id)); c2.style.color = "var(--muted)";
+      var b = el("button", null, "View"); b.type = "button"; b.addEventListener("click", function () { render(h.status, h.data, h.retryAfter, true); });
+      c3.appendChild(b); c3.style.textAlign = "right"; add(tr, c1, c2, c3); body.appendChild(tr);
+    });
+    tb.appendChild(body); s.appendChild(tb); return s;
   }
 
+  function render(status, data, retryAfter, fromHistory) {
+    clear(panel);
+    if (status !== 200 || !data || !data.decision) { return renderError(status, data, retryAfter); }
+    var reasons = data.reasons || [], failedStages = {};
+    reasons.forEach(function (r) { if (STAGE_OF[r.code]) failedStages[STAGE_OF[r.code]] = true; });
+    var approved = data.decision === "APPROVED";
+    panel.appendChild(approved
+      ? verdict("ok", "ic-check", "Approved", "All checks passed for request " + data.request_id + ".")
+      : verdict("bad", "ic-x", "Rejected", reasons.length + (reasons.length === 1 ? " reason" : " reasons") + " for request " + data.request_id + "."));
+
+    var retakes = [];
+    reasons.forEach(function (r) { if (RETAKE[r.code] && retakes.indexOf(RETAKE[r.code]) < 0) retakes.push(RETAKE[r.code]); });
+    var finals = reasons.filter(function (r) { return !r.retryable; });
+    if (!approved && (retakes.length || finals.length)) {
+      var todo = section("What to do next");
+      if (retakes.length) {
+        var box = el("div", "todo"); box.appendChild(el("b", null, "A new photo could fix this."));
+        var chips = el("div", "chips");
+        retakes.forEach(function (k) {
+          var c = el("button", "chip", "Retake: " + PHOTO[k]); c.type = "button"; c.addEventListener("click", function () { flagPhoto(k); }); chips.appendChild(c);
+        });
+        add(box, chips); todo.appendChild(box);
+      }
+      if (finals.length) {
+        var fb = el("div", "todo"); fb.style.background = "var(--bad-soft)"; fb.style.borderColor = "#f0c8c3";
+        fb.appendChild(el("b", null, "A new photo will not change this."));
+        fb.appendChild(el("p", "hint", "Check the claimed details and the licence itself."));
+        todo.appendChild(fb);
+      }
+      panel.appendChild(todo);
+    }
+    if (reasons.length) {
+      var rs = section("Reasons"), ul = el("ul", "reasons");
+      reasons.forEach(function (r) {
+        var li = el("li"), tag = el("span", "tag " + (r.retryable ? "retry" : "final"), r.retryable ? "RETAKE" : "FINAL");
+        var b = el("b", null, TITLE[r.code] || r.code), code = el("code", null, "  " + r.code);
+        var head = el("div"); add(head, b, code);
+        add(li, tag, head, el("p", null, r.message)); ul.appendChild(li);
+      });
+      rs.appendChild(ul); panel.appendChild(rs);
+    }
+    var ss = section("Checks"), st = el("div", "stages");
+    [["barcode", "Licence barcode"], ["face", "Face and liveness"], ["vehicle", "Plate and colour"]].forEach(function (s) { st.appendChild(stageCard(s[0], s[1], data, failedStages)); });
+    ss.appendChild(st); panel.appendChild(ss);
+    if (data.advisories && data.advisories.length) {
+      var as = section("Advisories"), text = { COLOUR_MISMATCH: "The body colour differs from the claimed colour. Advisory only.",
+        COLOUR_UNVERIFIED: "The body colour could not be verified. Advisory only.", LICENCE_FORMAT_UNUSUAL: "The licence number format is unusual for this province.",
+        LIVENESS_SKIPPED_DEV: "Liveness was skipped: no liveness model is loaded (testing only)." };
+      data.advisories.forEach(function (a) { as.appendChild(el("div", "adv", text[a] || a)); });
+      panel.appendChild(as);
+    }
+    panel.appendChild(timing(data));
+    if (data.audit) {
+      var au = section("Audit record");
+      au.appendChild(kv([["Manifest", (data.audit.manifest_id || "").slice(0, 16) + "…"], ["Signing key", data.audit.key_id || ""]]));
+      panel.appendChild(au);
+    }
+    panel.appendChild(rawSection(data));
+    if (history.length) panel.appendChild(historySection());
+    if (!fromHistory) { panel.focus({ preventScroll: true }); if (window.innerWidth <= 980) panel.scrollIntoView({ behavior: "smooth" }); }
+    panel.scrollTop = 0;
+  }
+
+  function renderError(status, data, retryAfter) {
+    var err = (data && data.error) || { code: "NETWORK", message: "The node could not be reached." };
+    var hints = { BUSY: "Another verification is running. Try again in " + (retryAfter || 5) + " seconds.",
+      UNAUTHORIZED: "This node requires an API key. Open Connection at the top and enter it.",
+      REQUEST_ID_CONFLICT: "This request ID was already used with different data. Change the request ID.",
+      ENGINE_ERROR: "The node could not finish. No decision was made. Do not treat this as a rejection.",
+      INVALID_IMAGE: "One photo could not be read. Use a JPEG, PNG or WebP photo.", IMAGE_TOO_LARGE: "A photo is larger than 10 MB.",
+      CONSENT_REQUIRED: "The consent time and policy version are required.", NETWORK: "Check that the node is running." };
+    panel.appendChild(verdict("err", "ic-alert", "No decision", "Request did not produce a verdict (" + (status || "no response") + ")."));
+    var s = section("What happened");
+    s.appendChild(el("p", null, err.message));
+    s.appendChild(el("p", "hint", hints[err.code] || ""));
+    s.appendChild(kv([["Error code", err.code]]));
+    panel.appendChild(s);
+    if (err.code === "UNAUTHORIZED") { $("conn").classList.add("open"); $("connBtn").setAttribute("aria-expanded", "true"); }
+    panel.appendChild(rawSection(data || err));
+    if (history.length) panel.appendChild(historySection());
+  }
+
+  /* ---------- submit ---------- */
+  function validate() {
+    var missing = [];
+    ["selfie", "licence_front", "licence_back", "vehicle"].forEach(function (k) {
+      var f = $(k).files && $(k).files[0]; if (!f) missing.push(k);
+    });
+    if (missing.length) { missing.forEach(flagPhoto); return "Add the " + missing.map(function (k) { return PHOTO[k].toLowerCase(); }).join(", ") + "."; }
+    var first = null;
+    Array.prototype.forEach.call($("form").querySelectorAll("input[required], select[required]"), function (i) { if (!first && i.type !== "file" && !i.value) first = i; });
+    if (first) { first.focus(); return "Fill in the highlighted field."; }
+    if (!$("consented").checked) { $("consented").focus(); return "Confirm the driver's biometric consent."; }
+    return "";
+  }
   $("form").addEventListener("submit", function (ev) {
     ev.preventDefault();
-    var key = $("apiKey").value;
+    var problem = validate();
+    if (problem) { clear(panel); panel.appendChild(verdict("err", "ic-alert", "Not sent yet", problem)); return; }
+    var btn = $("submit"), key = $("apiKey").value.trim(), headers = {};
     try { sessionStorage.setItem("kmt_key", key); } catch (e) { /* ignore */ }
-    var btn = $("submit"); btn.disabled = true; btn.textContent = "Verifying...";
-    fetch("/v1/verify", { method: "POST", headers: { "X-API-Key": key }, body: new FormData($("form")) })
-      .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
-      .then(function (res) {
-        if (res.status === 200) show(res.data.decision, res.data.decision, res.data);
-        else show("ERROR", "Error " + res.status, res.data);
+    if (key) headers["X-API-Key"] = key;
+    btn.disabled = true; btn.textContent = "Verifying…"; showRunning();
+    var id = $("request_id").value;
+    fetch("/v1/verify", { method: "POST", headers: headers, body: new FormData($("form")) })
+      .then(function (r) {
+        var ra = r.headers.get("Retry-After");
+        return r.json().then(function (d) { return { status: r.status, data: d, ra: ra }; }, function () { return { status: r.status, data: null, ra: ra }; });
       })
-      .catch(function () { show("ERROR", "Could not reach the server", { error: { code: "NETWORK", message: "The request failed." } }); })
-      .then(function () { btn.disabled = false; btn.textContent = "Verify"; $("request_id").value = "req-" + Date.now(); });
+      .then(function (res) {
+        var kind = res.status === 200 ? (res.data.decision === "APPROVED" ? "ok" : "bad") : "err";
+        history.push({ id: id, kind: kind, label: res.status === 200 ? (res.data.decision === "APPROVED" ? "Approved" : "Rejected") : "No decision",
+          status: res.status, data: res.data, retryAfter: res.ra });
+        if (history.length > 8) history.shift();
+        render(res.status, res.data, res.ra);
+      })
+      .catch(function () { render(0, null, null); })
+      .then(function () { btn.disabled = false; btn.textContent = "Run verification"; resetRequest(); refreshHealth(); });
   });
+  $("clearBtn").addEventListener("click", function () {
+    $("form").reset(); $("province").selectedIndex = 0;
+    Array.prototype.forEach.call(document.querySelectorAll(".drop"), paintDrop);
+    $("driver_id").value = "driver-1"; $("consent_policy_version").value = "v1"; resetRequest(); showEmpty();
+  });
+
+  showEmpty();
 })();
 </script>
 </body>

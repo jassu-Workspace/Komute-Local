@@ -52,6 +52,13 @@ def test_storage_root_inside_onedrive_rejected(p):
         make(storage_root=Path(p))
 
 
+def test_api_key_optional_in_dev_required_in_production():
+    assert make(api_key=None).api_key is None
+    assert make(api_key="").api_key is None
+    with pytest.raises(ValidationError):
+        make(env="production", liveness_model=Path("m.onnx"), api_key=None)
+
+
 def test_production_rejects_short_api_key_dev_allows_it():
     with pytest.raises(ValidationError):
         make(env="production", liveness_model=Path("m.onnx"), api_key="short")

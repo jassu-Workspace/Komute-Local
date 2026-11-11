@@ -5,7 +5,7 @@ Komüte-Local decides `APPROVED` or `REJECTED` for a driver and vehicle with no 
 ## Request flow
 
 ```text
-host app ── POST /v1/verify (multipart, X-API-Key) ──► FastAPI wrapper (backend/app)
+host app ── POST /v1/verify (multipart; X-API-Key only if the node has a key) ──► FastAPI wrapper (backend/app)
                                                          run gate: busy → 503 Retry-After
                                                          validate fields → 422 with a code
                                                          ▼

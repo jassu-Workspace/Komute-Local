@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
@@ -76,6 +76,11 @@ async def health(request: Request) -> JSONResponse:
         {"status": "ok" if all(required) else "degraded", "models_loaded": loaded, "rss_mb": round(hardware.rss_mb(), 1)},
         status_code=200 if all(required) else 503,
     )
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    return Response(status_code=204)
 
 
 @router.get("/")

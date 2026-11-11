@@ -17,11 +17,12 @@ Any failed gate gives `REJECTED` with every reason code, each marked **retryable
 On Windows, one command checks everything and starts it:
 
 ```powershell
-.un.ps1            # checks uv, Python 3.12, dependencies (installs missing ones with uv), model files and hashes; starts the backend; opens the test page
-.un.ps1 -CheckOnly # checks only
+.\run.ps1               # checks uv, Python 3.12, dependencies (installs missing ones with uv) and model files; starts the backend on port 8000; opens the test page
+.\run.ps1 -CheckOnly    # checks only
+.\run.ps1 -WithApiKey   # require the X-API-Key header (key in %LOCALAPPDATA%\komute\dev.env)
 ```
 
-It copies the dev API key to the clipboard (paste it into the page). If script execution is blocked: `powershell -ExecutionPolicy Bypass -File .un.ps1`. Or step by step:
+Authentication is **off** by default for testing. If script execution is blocked: `powershell -ExecutionPolicy Bypass -File .\run.ps1`. Or step by step:
 
 ```bash
 uv python install 3.12
@@ -35,7 +36,7 @@ Open `http://127.0.0.1:8000/` for the test page. Keep `--workers 1`. Settings an
 
 ## API
 
-`POST /v1/verify`, `multipart/form-data`, header `X-API-Key`.
+`POST /v1/verify`, `multipart/form-data`. No key is needed by default; if `KOMUTE_API_KEY` is set, send header `X-API-Key`. The full contract for the main application is in [`docs/INTEGRATION_GUIDE.md`](docs/INTEGRATION_GUIDE.md).
 
 | Field | Notes |
 |---|---|
@@ -68,4 +69,4 @@ If the barcode cannot be read the result is `REJECTED` / `BARCODE_UNREADABLE` (r
 
 ## Documentation
 
-[Architecture](docs/ARCHITECTURE.md) · [Stage 1 barcode](docs/STAGE1_BARCODE_SPECIFICATION.md) · [Stage 2 face](docs/STAGE2_BIOMETRICS_SPECIFICATION.md) · [Stage 3 vehicle](docs/STAGE3_ALPR_SPECIFICATION.md) · [Storage](docs/STORAGE_SPECIFICATION.md) · [Models](docs/MODELS_SPECIFICATION.md) and [measured model facts](docs/MODEL_FACTS.md) · [Deployment](docs/DEPLOYMENT_AND_OPERATIONS.md) · [Test page](docs/FRONTEND_ELEMENTS_SPECIFICATION.md) · [Acceptance report](docs/ACCEPTANCE_REPORT.md)
+[Architecture](docs/ARCHITECTURE.md) · [Stage 1 barcode](docs/STAGE1_BARCODE_SPECIFICATION.md) · [Stage 2 face](docs/STAGE2_BIOMETRICS_SPECIFICATION.md) · [Stage 3 vehicle](docs/STAGE3_ALPR_SPECIFICATION.md) · [Storage](docs/STORAGE_SPECIFICATION.md) · [Models](docs/MODELS_SPECIFICATION.md) and [measured model facts](docs/MODEL_FACTS.md) · [Deployment](docs/DEPLOYMENT_AND_OPERATIONS.md) · [Test page](docs/FRONTEND_ELEMENTS_SPECIFICATION.md) · [Integration guide](docs/INTEGRATION_GUIDE.md) · [Acceptance report](docs/ACCEPTANCE_REPORT.md)

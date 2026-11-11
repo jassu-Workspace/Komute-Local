@@ -14,7 +14,7 @@ Keep `--workers 1`: one verification at a time per container, and the models loa
 | Variable | Meaning |
 |---|---|
 | `ENV` | `dev` or `production`. Production requires `LIVENESS_MODEL` and refuses `DEV_SKIP_LIVENESS` |
-| `API_KEY` | value the host sends in `X-API-Key`. Use a long random value |
+| `API_KEY` | optional. Unset or empty means **no authentication** (testing). When set, callers must send it in `X-API-Key`. Required, 24+ characters, in production |
 | `STORAGE_ROOT` | where sessions live. **Never inside OneDrive**; settings reject such a path |
 | `STORAGE_KEY_B64`, `STORAGE_KEY_ID` | 32-byte base64 data key and its id, from the host's key service |
 | `MANIFEST_KEY_B64`, `MANIFEST_KEY_ID` | 32-byte base64 signing key and its id |
@@ -26,7 +26,7 @@ Keep `--workers 1`: one verification at a time per container, and the models loa
 
 ## Endpoints
 
-`POST /v1/verify` (see the README for the contract), `GET /v1/sessions/{request_id}` (stored response, API key), `GET /health` (no key: models loaded and RSS; `503` when a required model is missing), `GET /`.
+`POST /v1/verify` (see the README for the contract), `GET /v1/sessions/{request_id}` (stored response; key only if configured), `GET /health` (no key: models loaded and RSS; `503` when a required model is missing), `GET /`.
 
 ## Container
 

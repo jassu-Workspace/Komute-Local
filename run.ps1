@@ -14,11 +14,13 @@
   .\run.ps1
   .\run.ps1 -Port 8010 -NoBrowser
   .\run.ps1 -CheckOnly
+  .\run.ps1 -WithApiKey      # require the X-API-Key header (key: %LOCALAPPDATA%\komute\dev.env)
   powershell -ExecutionPolicy Bypass -File .\run.ps1    # if script execution is blocked
 #>
 param(
     [int]$Port = 8000,
     [switch]$NoBrowser,
+    [switch]$WithApiKey,
     [switch]$CheckOnly
 )
 
@@ -124,6 +126,12 @@ if (-not (Test-Path -LiteralPath $DevEnv)) {
 foreach ($line in Get-Content -LiteralPath $DevEnv) {
     if ($line -match '^\s*([A-Z0-9_]+)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process') }
 }
+if ($WithApiKey) {
+    Ok 'authentication: ON (callers must send the X-API-Key header; the key is in dev.env)'
+} else {
+    Remove-Item Env:KOMUTE_API_KEY -ErrorAction SilentlyContinue
+    Warn 'authentication: OFF (testing). Use -WithApiKey to require the X-API-Key header.'
+}
 $env:PYTHONUTF8 = '1'
 $env:KOMUTE_ENV = 'dev'
 if (-not $env:KOMUTE_STORAGE_ROOT) { $env:KOMUTE_STORAGE_ROOT = Join-Path $Home_ 'storage' }
@@ -160,11 +168,6 @@ try {
     if (-not $ready) { Fail 'The server did not become healthy within 60 seconds.' }
     Ok 'models loaded, server healthy'
 
-    $key = $env:KOMUTE_API_KEY
-    if ($key) {
-        try { Set-Clipboard -Value $key; Ok 'API key copied to the clipboard: paste it into the "API key" box' }
-        catch { Warn "Could not use the clipboard. The key is in $DevEnv" }
-    }
     if (-not $NoBrowser) { Start-Process $url }
     Write-Host "`nRunning at $url   (Ctrl+C to stop)" -ForegroundColor Green
     Wait-Process -Id $server.Id
