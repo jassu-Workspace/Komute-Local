@@ -52,16 +52,25 @@ class ModelRegistry:
         self.loaded: dict[str, bool] = {n: False for n in (*_FILES, "liveness")}
 
     def load(self) -> None:
+        if self._sessions:
+            return
+        lock = json.loads(self._lock.read_text(encoding="utf-8"))
         verify_lock(self._dir, self._lock)
-        for name, fname in _FILES.items():
-            self._sessions[name] = self._open(self._dir / fname)
-            self.loaded[name] = True
+        for name in (*_FILES.values(), _DETECTOR, _DICT):  # every file we open must be locked
+            if name not in lock:
+                raise ModelHashMismatch(name)
         if self._liveness is not None:
-            self._sessions["liveness"] = self._open(self._liveness)
-            self.loaded["liveness"] = True
+            lname = self._liveness.name
+            if lname not in lock or not self._liveness.is_file() or _sha256(self._liveness) != lock[lname]:
+                raise ModelHashMismatch(lname)
+        sessions = {n: self._open(self._dir / f) for n, f in _FILES.items()}
+        if self._liveness is not None:
+            sessions["liveness"] = self._open(self._liveness)
         # Measured: output classes = len(dict) + 2 -> [CTC blank] + dict + [space]
         chars = json.loads((self._dir / _DICT).read_text(encoding="utf-8"))
         self.plate_charset = ["", *chars, " "]
+        self.loaded.update({n: n in sessions for n in self.loaded})
+        self._sessions = sessions  # assigned last: a failed load leaves the registry empty
 
     @staticmethod
     def _open(path: Path) -> ort.InferenceSession:

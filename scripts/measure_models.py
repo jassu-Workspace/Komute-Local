@@ -17,6 +17,7 @@ import numpy as np  # noqa: E402
 
 from backend.core.hardware import ort_session_options, rss_mb  # noqa: E402
 
+FACTS_START, FACTS_END = "<!-- facts:start -->", "<!-- facts:end -->"
 MODELS = ROOT / "backend" / "models"
 LOCK = MODELS / "models.lock"
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -169,6 +170,10 @@ def main() -> None:
     lock = {n: sha256(MODELS / n) for n in LOCKED}
     LOCK.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
     print(table(rows))
+    facts = ROOT / "docs" / "MODEL_FACTS.md"
+    text = facts.read_text(encoding="utf-8")
+    a, b = text.index(FACTS_START) + len(FACTS_START), text.index(FACTS_END)
+    facts.write_text(text[:a] + "\n\n" + table(rows) + "\n\n" + text[b:], encoding="utf-8")
     print("\nOCR:", json.dumps(ocr_facts()))
     y = yolo_fixture()
     raw = y.pop("raw")
