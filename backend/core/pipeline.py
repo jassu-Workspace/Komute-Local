@@ -177,7 +177,7 @@ class Engine:
         return response
 
 
-def build_engine(settings: Settings) -> Engine:
+def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -> Engine:
     from .liveness import DevSkipLiveness, OnnxLiveness
     from .registry import ModelRegistry
     from .stages.barcode import run_barcode_stage
@@ -222,6 +222,6 @@ def build_engine(settings: Settings) -> Engine:
         ),
         liveness_skipped=skipped,
     )
-    engine = Engine(settings, store, stages)
+    engine = Engine(settings, store, stages, clock)
     engine.health_info = lambda: {"models_loaded": dict(registry.loaded)}
     return engine
