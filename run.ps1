@@ -148,8 +148,16 @@ if ($CheckOnly) { Write-Host "`nAll checks passed." -ForegroundColor Green; exit
 
 # ---------------------------------------------------------------- 5. start the server
 Step "Starting the backend on http://127.0.0.1:$Port"
+# Stop an earlier Komute server on this port. Found by command line, because the port owner is not always readable.
+$old = @(Get-CimInstance Win32_Process -Filter "Name like 'python%'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -match 'backend\.app\.main' -and $_.CommandLine -match "--port $Port( |$)" })
+foreach ($o in $old) {
+    Warn "Stopping the earlier Komute server on port $Port (PID $($o.ProcessId))."
+    cmd.exe /c "taskkill /PID $($o.ProcessId) /T /F >nul 2>&1"   # /T also ends the launcher and worker; a PID already gone is fine
+}
+for ($i = 0; $i -lt 60 -and (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 50 }
 if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) {
-    Fail "Port $Port is already in use. Run again with another port, for example: .\run.ps1 -Port 8010"
+    Fail "Port $Port is used by another program, not a Komute server. Stop it yourself or run: .\run.ps1 -Port 8010"
 }
 $server = Start-Process -FilePath $Py -PassThru -NoNewWindow -WorkingDirectory $PSScriptRoot -ArgumentList @(
     '-m', 'uvicorn', 'backend.app.main:create_app', '--factory',
