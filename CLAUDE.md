@@ -23,6 +23,8 @@ Komüte-Local is a driver and vehicle verification module that a separate host a
 
 Python 3.12 only (installed by `uv`). The venv lives outside OneDrive. Run from the repo root in Git Bash.
 
+One command does the checks and starts the app on Windows: `.un.ps1` (`-CheckOnly`, `-Port`, `-NoBrowser`). It installs missing dependencies from `requirements.txt` with uv and verifies model files against `models.lock`. Manual steps:
+
 ```bash
 uv python install 3.12
 uv venv --python 3.12 "$LOCALAPPDATA/komute/venv"

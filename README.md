@@ -14,6 +14,15 @@ Any failed gate gives `REJECTED` with every reason code, each marked **retryable
 
 ## Quickstart
 
+On Windows, one command checks everything and starts it:
+
+```powershell
+.un.ps1            # checks uv, Python 3.12, dependencies (installs missing ones with uv), model files and hashes; starts the backend; opens the test page
+.un.ps1 -CheckOnly # checks only
+```
+
+It copies the dev API key to the clipboard (paste it into the page). If script execution is blocked: `powershell -ExecutionPolicy Bypass -File .un.ps1`. Or step by step:
+
 ```bash
 uv python install 3.12
 uv venv --python 3.12 "$LOCALAPPDATA/komute/venv"
