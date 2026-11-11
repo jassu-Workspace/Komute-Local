@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     rejected_images_ttl_h: int = 72
     approved_originals_ttl_d: int = 30
     sweep_interval_s: int = 3600
+    warmup_max_rss_mb: float = 400  # warm the models at start only while the node is below this; 0 disables
 
     @field_validator("api_key")
     @classmethod

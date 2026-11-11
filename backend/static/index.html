@@ -501,6 +501,40 @@
     var head = kv([["Total", (total / 1000).toFixed(2) + " s"], ["Node memory", Math.round(data.rss_mb || 0) + " MB"]]);
     add(s, head, el("div")); s.lastChild.style.height = "10px"; add(s, stack, legend); return s;
   }
+  function memoryChart(data) {
+    var tr = data.memory_trace; if (!tr || !tr.points || tr.points.length < 2) return null;
+    var NS = "http:" + "//www.w3.org/2000/svg" /* an XML namespace id, not a network request */, W = 640, H = 200, L = 46, R = 12, T = 12, B = 28;
+    var pts = tr.points, tMax = Math.max(pts[pts.length - 1][0], 1);
+    var lo = Math.floor(Math.min.apply(null, pts.map(function (p) { return p[1]; })) / 10) * 10 - 10;
+    var hi = Math.ceil(tr.peak_mb / 10) * 10 + 10;
+    function X(t) { return L + t / tMax * (W - L - R); }
+    function Y(m) { return T + (hi - m) / (hi - lo) * (H - T - B); }
+    function sv(tag, attrs, text) { var n = document.createElementNS(NS, tag); for (var k in attrs) n.setAttribute(k, attrs[k]); if (text) n.textContent = text; return n; }
+    var svg = sv("svg", { viewBox: "0 0 " + W + " " + H, role: "img", width: "100%", "aria-label": "Memory over time: start " + tr.start_mb + " MB, peak " + tr.peak_mb + " MB, end " + tr.end_mb + " MB" });
+    for (var i = 0; i <= 4; i++) {
+      var m = lo + (hi - lo) * i / 4, y = Y(m);
+      svg.appendChild(sv("line", { x1: L, x2: W - R, y1: y, y2: y, stroke: "#e2dfd6" }));
+      svg.appendChild(sv("text", { x: L - 6, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "#6a6f76" }, Math.round(m)));
+    }
+    for (var j = 0; j <= 4; j++) {
+      var tt = tMax * j / 4;
+      svg.appendChild(sv("text", { x: X(tt), y: H - 8, "text-anchor": j === 0 ? "start" : j === 4 ? "end" : "middle", "font-size": 11, fill: "#6a6f76" }, (tt / 1000).toFixed(1) + " s"));
+    }
+    var line = pts.map(function (p) { return X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1); });
+    svg.appendChild(sv("polygon", { points: X(0) + "," + Y(lo) + " " + line.join(" ") + " " + X(tMax) + "," + Y(lo), fill: "#27407a", "fill-opacity": 0.1 }));
+    svg.appendChild(sv("polyline", { points: line.join(" "), fill: "none", stroke: "#27407a", "stroke-width": 2, "stroke-linejoin": "round" }));
+    (tr.marks || []).forEach(function (mk) {
+      if (mk[0] === "saved") return;
+      svg.appendChild(sv("line", { x1: X(mk[1]), x2: X(mk[1]), y1: T, y2: H - B, stroke: "#b8b3a4", "stroke-dasharray": "3 3" }));
+      svg.appendChild(sv("text", { x: X(mk[1]) - 3, y: T + 10, "text-anchor": "end", "font-size": 10, fill: "#4a5058" }, mk[0]));
+    });
+    var peak = pts.reduce(function (a, p) { return p[1] > a[1] ? p : a; }, pts[0]);
+    svg.appendChild(sv("circle", { cx: X(peak[0]), cy: Y(peak[1]), r: 4, fill: "#b42318" }));
+    var s = section("Memory during verification");
+    add(s, kv([["Start", tr.start_mb + " MB"], ["Peak", tr.peak_mb + " MB"], ["End", tr.end_mb + " MB"]]), el("div"));
+    s.lastChild.style.height = "10px"; s.appendChild(svg); s.appendChild(el("div", "legend", "RAM of the node (MB) from the start to the end of this verification. Dashed lines mark stage ends. Red dot is the peak."));
+    return s;
+  }
   function rawSection(data) {
     var s = el("section", "sec"), d = el("details", "raw"), sm = el("summary", null, "Raw response");
     var pre = el("pre", null, JSON.stringify(data, null, 2));
@@ -575,6 +609,7 @@
       panel.appendChild(as);
     }
     panel.appendChild(timing(data));
+    var mc = memoryChart(data); if (mc) panel.appendChild(mc);
     if (data.audit) {
       var au = section("Audit record");
       au.appendChild(kv([["Manifest", (data.audit.manifest_id || "").slice(0, 16) + "…"], ["Signing key", data.audit.key_id || ""]]));

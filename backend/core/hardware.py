@@ -4,6 +4,8 @@ from __future__ import annotations
 import ctypes
 import os
 import sys
+import threading
+import time
 
 
 _PIXEL_LIMIT = 40_000_000
@@ -76,6 +78,52 @@ def rss_mb() -> float:
     import psutil
 
     return psutil.Process().memory_info().rss / 1_048_576
+
+
+class MemorySampler:
+    """Samples this process's RSS on a background thread while a verification runs."""
+
+    def __init__(self, interval_s: float = 0.05, max_points: int = 240) -> None:
+        self._interval, self._max = interval_s, max_points
+        self._points: list[tuple[float, float]] = []
+        self._marks: list[tuple[str, float]] = []
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._t0 = 0.0
+
+    def _now_ms(self) -> float:
+        return round((time.perf_counter() - self._t0) * 1000, 1)
+
+    def __enter__(self) -> "MemorySampler":
+        self._t0 = time.perf_counter()
+        self._points.append((0.0, round(rss_mb(), 1)))
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+        return self
+
+    def _loop(self) -> None:
+        while not self._stop.wait(self._interval):
+            self._points.append((self._now_ms(), round(rss_mb(), 1)))
+
+    def mark(self, name: str) -> None:
+        self._marks.append((name, self._now_ms()))
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=1)
+        self._points.append((self._now_ms(), round(rss_mb(), 1)))
+
+    def trace(self) -> dict:
+        pts = self._points
+        if len(pts) > self._max:  # keep the first, the last and the peak; thin the rest evenly
+            step = len(pts) / self._max
+            keep = {int(i * step) for i in range(self._max)} | {0, len(pts) - 1, max(range(len(pts)), key=lambda i: pts[i][1])}
+            pts = [pts[i] for i in sorted(keep)]
+        return {
+            "start_mb": pts[0][1], "end_mb": pts[-1][1], "peak_mb": max(p[1] for p in pts),
+            "points": [[t, mb] for t, mb in pts], "marks": [[n, t] for n, t in self._marks],
+        }
 
 
 def trim_heap() -> None:

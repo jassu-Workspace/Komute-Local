@@ -98,10 +98,12 @@ def engine(settings, store, fakes, skipped=False):
 def test_all_pass_approved_and_session_verifies(settings, store):
     resp = engine(settings, store, Fakes()).verify(inp())
     assert resp["decision"] == "APPROVED" and resp["reasons"] == []
-    assert set(resp) == {"request_id", "decision", "reasons", "stages", "advisories", "timings_ms", "rss_mb", "audit"}
+    assert set(resp) == {"request_id", "decision", "reasons", "stages", "advisories", "timings_ms", "rss_mb", "memory_trace", "audit"}
     assert resp["stages"]["barcode"]["ran"] and resp["audit"]["key_id"] == "m1"
     report = verify_session(store, session_prefix("d1", "r1"), MKEY)
     assert report.ok
+    tr = resp["memory_trace"]
+    assert len(tr["points"]) >= 2 and tr["peak_mb"] >= tr["start_mb"] and [m[0] for m in tr["marks"]][-1] == "saved"
     keys = {k.split("/", 3)[3] for k in store.list_prefix(session_prefix("d1", "r1"))}
     assert {"originals/selfie.jpg", "cropped/plate.webp", "compressed/vehicle.webp", "record.json", "manifest.json"} <= keys
 

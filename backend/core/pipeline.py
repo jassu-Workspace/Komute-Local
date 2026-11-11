@@ -110,22 +110,31 @@ class Engine:
             hardware.trim_heap()
 
     def _run(self, inp: VerifyInput) -> dict:
+        with hardware.MemorySampler() as mem:
+            return self._run_sampled(inp, mem)
+
+    def _run_sampled(self, inp: VerifyInput, mem: hardware.MemorySampler) -> dict:
         t_start = time.perf_counter()
         now = self._clock()
         images = {k: decode_image(inp.image_bytes[k], self._s.max_image_side) for k in IMAGE_KEYS}
 
+        mem.mark("decoded")
         prefix = session_prefix(inp.driver_id, inp.request_id)
         self._store.delete_prefix(prefix)  # a retry starts clean: leftovers of a crashed run are never trusted
         writer = SessionWriter(self._store, prefix, self._manifest_key, self._s.manifest_key_id, now)
         for k in IMAGE_KEYS:
             writer.put(f"originals/{k}.{_ext(inp.image_bytes[k])}", inp.image_bytes[k])
 
+        mem.mark("stored")
         barcode, record = self._stages.barcode(images["licence_back"], inp.claimed, now)
+        mem.mark("barcode")
         if barcode.reasons:
             face, vehicle = _skipped("face"), _skipped("vehicle")
         else:
             face = self._stages.face(images["selfie"], images["licence_front"])
+            mem.mark("face")
             vehicle = self._stages.vehicle(images["vehicle"], inp.claimed)
+            mem.mark("vehicle")
         results = [barcode, face, vehicle]
 
         reasons: list[Reason] = []
@@ -175,6 +184,7 @@ class Engine:
         manifest_id = writer.commit(record_doc)
 
         timings["total"] = round((time.perf_counter() - t_start) * 1000, 1)
+        mem.mark("saved")
         response = {
             "request_id": inp.request_id,
             "decision": decision,
@@ -183,10 +193,29 @@ class Engine:
             "advisories": advisories,
             "timings_ms": timings,
             "rss_mb": round(hardware.rss_mb(), 1),
+            "memory_trace": mem.trace(),
             "audit": {"manifest_id": manifest_id, "key_id": self._s.manifest_key_id},
         }
         save(self._store, inp.request_id, inp.driver_id, inp.payload_sha256, response)
         return response
+
+
+def _warm_up(detector, embedder_session, plate_detector, plate_ocr) -> None:
+    """One blank inference per model, so the first real request does not pay the ONNX start-up cost."""
+    import numpy as np
+
+    from .stages.face import embed
+    from .stages.vehicle import detect_plate, read_plate
+
+    t = time.perf_counter()
+    try:
+        detector.detect(np.zeros((480, 640, 3), np.uint8))
+        embed(np.zeros((112, 112, 3), np.uint8), embedder_session)
+        detect_plate(np.zeros((480, 640, 3), np.uint8), plate_detector)
+        read_plate(np.zeros((64, 128, 3), np.uint8), plate_ocr)
+        log.info("models warmed in %.0f ms, rss %.0f MB", (time.perf_counter() - t) * 1000, hardware.rss_mb())
+    except Exception as e:  # warm-up is an optimisation; a failure must not stop the node
+        log.warning("model warm-up skipped type=%s", type(e).__name__)
 
 
 def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -> Engine:
@@ -233,6 +262,8 @@ def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -
         ),
         liveness_skipped=skipped,
     )
+    if settings.warmup_max_rss_mb > 0 and hardware.rss_mb() < settings.warmup_max_rss_mb:
+        _warm_up(detector, embedder_session, plate_detector, plate_ocr)
     engine = Engine(settings, store, stages, clock)
     engine.health_info = lambda: {"models_loaded": dict(registry.loaded)}
     return engine

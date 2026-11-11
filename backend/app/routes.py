@@ -88,4 +88,4 @@ async def index() -> FileResponse:
     page = STATIC / "index.html"
     if not page.exists():
         raise ApiError(404, "NOT_FOUND", "Test page not installed.")
-    return FileResponse(page, media_type="text/html")
+    return FileResponse(page, media_type="text/html", headers={"Cache-Control": "no-store"})  # a stale cached page hid new features
