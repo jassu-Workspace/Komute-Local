@@ -19,15 +19,19 @@ Komüte-Local is a driver and vehicle verification module that a separate host a
 
 ## Commands
 
-Planned; none of these work until the backend exists. Use Python 3.12. `requirements.txt` pins `numpy<2.0`, and a stale `storage/__pycache__/*.cpython-314.pyc` suggests this machine also runs Python 3.14. Do not install with 3.13 or later.
+Python 3.12 only (installed by `uv`). The venv lives outside OneDrive. Run every command from the repo root in Git Bash.
 
 ```bash
-python -m venv .venv && source .venv/Scripts/activate   # Windows Git Bash; PowerShell: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 1   # planned entrypoint; keep workers=1
-pytest                                                   # no tests exist yet
-pytest path/to/test_file.py::test_name                   # single test
+uv python install 3.12
+uv venv --python 3.12 "$LOCALAPPDATA/komute/venv"
+uv pip install --python "$LOCALAPPDATA/komute/venv" -r requirements.txt   # requirements.lock = exact frozen set
+python scripts/make_dev_keys.py          # once; writes $LOCALAPPDATA/komute/dev.env, refuses to overwrite
+source scripts/dev_env.sh                # exports $PY, KOMUTE_* env vars, PYTHONUTF8=1
+"$PY" -m pytest                          # all tests
+"$PY" -m pytest tests/test_smoke.py::test_imports -v   # single test
 ```
+
+Markers: `models` (needs ONNX files), `samples` (skipped unless `KOMUTE_SAMPLES_DIR` exists and is non-empty). `numpy` is unpinned (numpy 2 works with all requirements). The API entrypoint (`uvicorn backend.app.main:app --workers 1`) does not exist yet.
 
 ## Architecture (big picture)
 
