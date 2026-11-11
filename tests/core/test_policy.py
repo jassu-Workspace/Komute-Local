@@ -11,10 +11,9 @@ def test_iin_table_has_13_entries_matching_claude_md():
         assert f"| {prov} |" in claude and iin in claude
 
 
-def test_every_province_has_pattern_timezone_and_tables():
+def test_every_province_has_pattern_and_timezone():
     for p in policy.PROVINCES:
         assert p in policy.LICENCE_PATTERNS and p in policy.TIMEZONES
-        assert p in policy.ALLOWED_CLASSES and p in policy.ALLOWED_RESTRICTIONS
 
 
 def test_nf_normalises_to_nl_and_junk_raises():

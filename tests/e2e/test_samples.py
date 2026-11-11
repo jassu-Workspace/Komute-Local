@@ -67,16 +67,8 @@ def env(tmp_path_factory, cards):
         storage_key_id="s1", manifest_key_b64=b64(b"m" * 32), manifest_key_id="m1", dev_skip_liveness=True,
     )
     engine = build_engine(s, clock=lambda: clock["now"])
-    # Test-only: let each real card's own class through so every card reaches the face and vehicle stages.
-    # The owner's allowed-class table itself is NOT changed by this test.
-    original = dict(policy.ALLOWED_CLASSES)
-    for card in cards.values():
-        prov = IIN_TO_PROVINCE[card["rec"].iin]
-        policy.ALLOWED_CLASSES[prov] = policy.ALLOWED_CLASSES[prov] | {card["rec"].fields["DCA"].strip().upper()}
     with TestClient(create_app(s, engine)) as client:
         yield client, engine, clock
-    policy.ALLOWED_CLASSES.clear()
-    policy.ALLOWED_CLASSES.update(original)
 
 
 def claim(rec, **over):

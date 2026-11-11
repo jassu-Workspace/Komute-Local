@@ -24,9 +24,6 @@ class ReasonCode(StrEnum):
     LICENCE_NUMBER_MISMATCH = "LICENCE_NUMBER_MISMATCH"
     LICENCE_EXPIRED = "LICENCE_EXPIRED"
     UNDERAGE = "UNDERAGE"
-    CLASS_NOT_ALLOWED = "CLASS_NOT_ALLOWED"
-    RESTRICTION_NOT_ALLOWED = "RESTRICTION_NOT_ALLOWED"
-    RESTRICTION_UNKNOWN = "RESTRICTION_UNKNOWN"
     FACE_MISMATCH = "FACE_MISMATCH"
     PLATE_MISMATCH = "PLATE_MISMATCH"
 
@@ -55,9 +52,6 @@ MESSAGES: dict[ReasonCode, str] = {
     _R.LICENCE_NUMBER_MISMATCH: "The licence number given does not match the licence.",
     _R.LICENCE_EXPIRED: "The licence has expired.",
     _R.UNDERAGE: "The licence holder is under the minimum age.",
-    _R.CLASS_NOT_ALLOWED: "The licence class is not allowed.",
-    _R.RESTRICTION_NOT_ALLOWED: "The licence has a restriction that is not allowed.",
-    _R.RESTRICTION_UNKNOWN: "The licence has a restriction code that the system does not recognise.",
     _R.FACE_MISMATCH: "The selfie does not match the face on the licence.",
     _R.PLATE_MISMATCH: "The licence plate in the photo does not match the plate given.",
 }

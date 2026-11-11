@@ -79,10 +79,6 @@ def main() -> None:
     if not cards:
         raise SystemExit("no readable real licences found")
     vehicle = Path("tests/fixtures/synthetic_vehicle.png").read_bytes()
-    for c in cards:  # bench-only: let each card's own class through so the full pipeline runs
-        prov = IIN_TO_PROVINCE[c["rec"].iin]
-        policy.ALLOWED_CLASSES[prov] = policy.ALLOWED_CLASSES[prov] | {c["rec"].fields["DCA"].strip().upper()}
-
     tmp = tempfile.mkdtemp(prefix="komute-bench-")
     s = Settings(
         api_key="bench", storage_root=Path(tmp) / "store", storage_key_b64=b64(b"s" * 32), storage_key_id="s1",

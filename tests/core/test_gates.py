@@ -28,8 +28,10 @@ def test_all_pass_for_valid_ontario_g():
     assert run()[0] == set()
 
 
-def test_g2_rejected_class():
-    assert ReasonCode.CLASS_NOT_ALLOWED in run({"DCA": "G2"})[0]
+def test_any_class_and_any_restriction_accepted():
+    for cls in ("G1", "G2", "5", "7", "A", "Z"):
+        assert run({"DCA": cls})[0] == set()
+    assert run({"DCB": "ZZ"})[0] == set()
 
 
 def test_expiry_today_passes_and_yesterday_fails():
@@ -57,22 +59,18 @@ def test_exactly_18_today_passes():
     assert ReasonCode.UNDERAGE not in codes
 
 
-def test_unknown_restriction_fails_closed():
-    assert ReasonCode.RESTRICTION_UNKNOWN in run({"DCB": "ZZ"})[0]
-    assert ReasonCode.RESTRICTION_UNKNOWN not in run({"DCB": "NONE"})[0]
-    assert ReasonCode.RESTRICTION_UNKNOWN not in run({"DCB": ""})[0]
-
-
 def test_quebec_class_5_ok():
     f = {"DAJ": "QC", "DCA": "5", "DAQ": "T123456789012"}
     cl = claimed(issuing_province="QC", licence_number="T123456789012")
     assert run(f, iin="604428", cl=cl)[0] == set()
 
 
-def test_manitoba_empty_class_table_fails_closed():
-    f = {"DAJ": "MB", "DCA": "5", "DAQ": "PUBLIJQ123AB"}
-    cl = claimed(issuing_province="MB", licence_number="PUBLIJQ123AB")
-    assert ReasonCode.CLASS_NOT_ALLOWED in run(f, iin="636048", cl=cl)[0]
+def test_every_province_accepts_any_class():
+    from backend.core import policy
+    for iin, prov in policy.IIN_TO_PROVINCE.items():
+        f = {"DAJ": prov, "DCA": "X9", "DAQ": "12345"}
+        cl = claimed(issuing_province=prov, licence_number="12345")
+        assert run(f, iin=iin, cl=cl)[0] == set()
 
 
 def test_dob_mismatch_by_one_day():
@@ -80,8 +78,8 @@ def test_dob_mismatch_by_one_day():
 
 
 def test_collects_multiple_failures():
-    codes, _ = run({"DCA": "G1", "DBA": "20200101"}, cl=claimed(full_name="Somebody Else"))
-    assert {ReasonCode.CLASS_NOT_ALLOWED, ReasonCode.LICENCE_EXPIRED, ReasonCode.NAME_MISMATCH} <= codes
+    codes, _ = run({"DBA": "20200101"}, cl=claimed(full_name="Somebody Else"))
+    assert {ReasonCode.LICENCE_EXPIRED, ReasonCode.NAME_MISMATCH} <= codes
 
 
 def test_jurisdiction_mismatch_between_claim_iin_and_daj():

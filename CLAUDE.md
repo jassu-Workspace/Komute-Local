@@ -69,8 +69,7 @@ Legal citations in the owner's answers (Toronto Chapter 546, Quebec SAAQ rules, 
 
 **Eligibility**
 - One profile: minimum age 18, computed from the barcode date of birth. No commercial profile.
-- Licence class must be full and unrestricted. Ontario: Class G only. Quebec, BC, Alberta: Class 5 full only. Learner and graduated stages are rejected. Rules for the other nine jurisdictions are not defined. They come from the owner's real sample licences. Open.
-- Allowed restrictions: corrective lenses, automatic transmission. Rejected: ignition interlock, daylight-only, hand controls (get legal advice, because rejecting hand controls may raise human-rights issues). Restriction codes are jurisdiction-specific and need a table built from real samples. An unknown code fails closed.
+- Owner ruling (2026-11-11): **no class, restriction or province limits.** Any licence class and any restriction code is accepted, in all 13 jurisdictions. The only eligibility gates are age 18 or older (barcode date of birth) and an unexpired licence. The jurisdiction check (claimed province = IIN = `DAJ`) stays because it attributes the card to one region.
 - Expiry: zero grace days. An expiry date before the verification date fails. Assumed: valid through the end of the expiry date, compared in the issuing jurisdiction's time zone.
 - Suspension and revocation are out of scope. The host queries provincial driver records.
 
@@ -179,7 +178,6 @@ Compared on 2026-11-11 with a secondary copy of the US FMCSA chart (August 2021)
 
 - **Liveness:** no liveness model file exists. Dev runs skip it (advisory `LIVENESS_SKIPPED_DEV`). `OnnxLiveness` is untested on a real model and its parameters are unverified. Production start requires one.
 - **Face threshold:** 0.40 is provisional. Real data so far is 3 licences, 6 impostor pairs and no selfies. No false-accept or false-reject rate is measured.
-- **Policy tables:** allowed classes exist only for ON (`G`) and QC, BC, AB (`5`). The real NS and SK cards (class `5`) are rejected `CLASS_NOT_ALLOWED` until the owner decides. Allowed restriction codes are empty for every province.
 - **Docker:** the owner decided (2026-11-11) NOT to use Docker until the module is handed to the main developers. Do not build, run or start Docker. Memory is measured locally with `scripts/bench.py` (Windows: steady about 334 MB, peak about 383 MB). The `Dockerfile` exists but has never been built or run; Linux memory is unmeasured until handover.
 - **Plate OCR and detector:** the OCR reads 9 of 9 internet photos of Canadian plates exactly (tuned on nothing; the photos are in `$LOCALAPPDATA/komute/samples/plates`, stock images, never commit them). Plates smaller than about 5% of the frame width were not detected in a quick test. No real onboarding vehicle photo has been tested.
 - **Docs:** `docs/superpowers/` holds the original spec and plan, which predate several decisions (see the ledger rulings). The other `docs/*.md` files describe the built system.
@@ -187,7 +185,7 @@ Compared on 2026-11-11 with a secondary copy of the US FMCSA chart (August 2021)
 
 ## Inputs still needed from the owner
 
-- Real sample licences, to build the class and restriction code tables for all 13 jurisdictions and to confirm each issuer prints a barcode.
+- Real sample licences, to confirm each issuer prints a barcode.
 - A decision on the 85% name rule versus an exact-surname rule, and on tightening the licence regexes.
 - Legal review of the citations above, of the hand-controls rule, and of how long to keep the image-free audit record.
 - A confirmed origin and SHA-256 for each ONNX file, recorded in `backend/models/models.lock`.

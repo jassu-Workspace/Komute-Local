@@ -6,7 +6,7 @@ An offline verification module for driver onboarding. A host application sends a
 
 ## What it checks
 
-1. **Licence barcode.** Decodes the AAMVA PDF417 on the back and trusts it over anything printed. Gates: issuing jurisdiction, licence number, name, date of birth, expiry, age 18+, licence class, restrictions.
+1. **Licence barcode.** Decodes the AAMVA PDF417 on the back and trusts it over anything printed. Gates: issuing jurisdiction, licence number, name, date of birth, expiry, age 18+. Any class and restriction is accepted.
 2. **Face.** The selfie against the licence photo (YuNet, `w600k_r50` embeddings), after a single-photo liveness check.
 3. **Vehicle.** Plate read by an OCR restricted to `A–Z`, `0–9` and compared to the claimed plate. Body colour is advisory only.
 
@@ -63,7 +63,6 @@ If the barcode cannot be read the result is `REJECTED` / `BARCODE_UNREADABLE` (r
 
 - **No liveness model.** Single-photo liveness is weaker than multi-frame. Production start requires a model file.
 - **Face threshold unproven.** No false-accept or false-reject rate is measured; a rate of 1 in 10,000 needs about 30,000 impostor trials.
-- **Policy tables are partial.** Allowed classes: ON `G`; QC, BC, AB `5`. Other provinces fail closed, and so does any licence restriction code, until real samples fill the tables.
 - **The plate stage proves a car with that plate text was photographed**, not that it belongs to the driver.
 - Suspension and revocation are not checked: the host queries provincial driver records.
 

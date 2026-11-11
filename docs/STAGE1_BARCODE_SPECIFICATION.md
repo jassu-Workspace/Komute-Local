@@ -28,9 +28,7 @@ Decodes the AAMVA PDF417 on the licence back, parses it, and runs the licence ga
 | Date of birth | exact match to `DBB` | `DOB_MISMATCH` |
 | Expiry | valid through the end of `DBA` in the issuing province's time zone | `LICENCE_EXPIRED` |
 | Age | 18 or older on that local date, from the barcode date of birth | `UNDERAGE` |
-| Class | `DCA` in the province's allowed set (empty set fails closed) | `CLASS_NOT_ALLOWED` |
-| Restrictions | each `DCB` code must be allowed. Unknown codes fail closed | `RESTRICTION_UNKNOWN`, `RESTRICTION_NOT_ALLOWED` |
 
-Allowed classes today: ON `G`; QC, BC, AB `5`. Other provinces have no allowed class yet, so they are rejected. The allowed restriction codes are empty for every province, so any restriction code other than none fails closed. Both tables are filled from real sample licences (`backend/core/policy.py`).
+Any class and any restriction code is accepted in every province. Only age 18+ and an unexpired licence decide eligibility.
 
 Any Stage 1 failure stops the pipeline: Stages 2 and 3 do not run.

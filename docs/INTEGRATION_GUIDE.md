@@ -135,7 +135,6 @@ Every error has the same shape: `{"error": {"code": "...", "message": "..."}}`.
 | `PLATE_NOT_FOUND`, `PLATE_UNREADABLE` | yes | Retake the **vehicle photo**: plate level, in frame, readable |
 | `JURISDICTION_MISMATCH`, `NAME_MISMATCH`, `DOB_MISMATCH`, `LICENCE_NUMBER_MISMATCH` | no | The typed details do not match the licence. Ask the driver to correct them |
 | `LICENCE_EXPIRED`, `UNDERAGE` | no | Not eligible |
-| `CLASS_NOT_ALLOWED`, `RESTRICTION_NOT_ALLOWED`, `RESTRICTION_UNKNOWN` | no | Licence class or restriction is not accepted |
 | `FACE_MISMATCH` | no | The selfie does not match the licence photo |
 | `PLATE_MISMATCH` | no | The plate in the photo differs from the plate entered |
 

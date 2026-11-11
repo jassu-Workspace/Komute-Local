@@ -1,7 +1,6 @@
 """Licence gates: compare the barcode record to the claimed data and the policy. Collects every failure."""
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -55,15 +54,5 @@ def licence_gates(
         fail(ReasonCode.LICENCE_EXPIRED)
     if dob is not None and age_on(dob, today) < policy.MIN_AGE:
         fail(ReasonCode.UNDERAGE)
-
-    if record.fields.get("DCA", "").strip().upper() not in policy.ALLOWED_CLASSES[province]:
-        fail(ReasonCode.CLASS_NOT_ALLOWED)
-
-    codes = [c for c in re.split(r"[\s,]+", record.fields.get("DCB", "").upper()) if c]
-    codes = [c for c in codes if c not in policy.NO_RESTRICTION_VALUES]
-    if any(c in policy.BLOCKED_RESTRICTIONS[province] for c in codes):
-        fail(ReasonCode.RESTRICTION_NOT_ALLOWED)
-    elif any(c not in policy.ALLOWED_RESTRICTIONS[province] for c in codes):
-        fail(ReasonCode.RESTRICTION_UNKNOWN)
 
     return reasons, advisories

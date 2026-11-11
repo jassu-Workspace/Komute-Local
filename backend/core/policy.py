@@ -1,4 +1,4 @@
-"""Per-jurisdiction policy tables. Class and restriction tables are filled from real samples."""
+"""Per-jurisdiction policy tables. Any class and any restriction are accepted."""
 from __future__ import annotations
 
 import re
@@ -37,17 +37,6 @@ TIMEZONES = {
     "PE": "America/Halifax", "YT": "America/Whitehorse", "NT": "America/Edmonton",
     "NU": "America/Iqaluit",
 }
-
-# An empty set means the province fails closed until the owner confirms codes from real samples.
-ALLOWED_CLASSES: dict[str, frozenset[str]] = {p: frozenset() for p in PROVINCES}
-ALLOWED_CLASSES.update(
-    {"ON": frozenset({"G"}), "QC": frozenset({"5"}), "BC": frozenset({"5"}), "AB": frozenset({"5"})}
-)
-
-ALLOWED_RESTRICTIONS: dict[str, frozenset[str]] = {p: frozenset() for p in PROVINCES}
-BLOCKED_RESTRICTIONS: dict[str, frozenset[str]] = {p: frozenset() for p in PROVINCES}
-NO_RESTRICTION_VALUES = frozenset({"", "NONE"})
-
 
 def normalise_province(code: str) -> str:
     c = (code or "").strip().upper()

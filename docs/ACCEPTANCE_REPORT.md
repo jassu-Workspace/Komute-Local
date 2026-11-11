@@ -25,7 +25,7 @@ Evidence data: three real Canadian licences (front and back), synthetic AAMVA ba
 
 Rejections were the expected ones for each mutation: wrong name, licence number, province and date of birth; expired licence; one day before the 18th birthday; blank barcode photo and a photo of the card front as the back (retryable, with the retake message); blank selfie; a different real person's photo as the selfie (`FACE_MISMATCH`, final); blank vehicle photo. Stage 1 failures stopped the pipeline every time.
 
-The NS and SK cards are rejected `CLASS_NOT_ALLOWED` in normal operation: their class `5` is not in the allowed table. The end-to-end test lets each card's own class through for that run only. The ON card (class `G`, no restrictions) passed every licence gate unchanged.
+No class or restriction gate exists (owner ruling 2026-11-11), so every real card reaches the face and vehicle stages unchanged.
 
 ## Decisions made on the owner's behalf
 
@@ -35,9 +35,8 @@ See the ledger in `.superpowers/sdd/2026-11-11-komute-local-master-plan/progress
 
 1. A liveness model file, a threshold chosen on attack samples, and its measured memory.
 2. Real selfies (5–10 people, with consent) to measure false rejects, and public cross-age and impostor sets to bound false accepts. Report intervals, not point rates.
-3. A decision on NS and SK class `5`, and the allowed restriction codes for every province, from real samples.
-4. A real vehicle photo set to test plate detection, reading and colour.
-5. After handover to the main developers: build the image and run the memory bench on Linux (deferred by the owner; no Docker before then).
-6. Real licences for the other 10 provinces, to confirm each issuer prints a readable AAMVA barcode.
-7. Legal review of the Quebec Law 25 and municipal citations, the hand-controls rule, and audit-record retention.
-8. Security triage of the deferred items: a minimum API key length in production, and a re-review of `storage/local.py` after its last fix.
+3. A real vehicle photo set to test plate detection, reading and colour.
+4. After handover to the main developers: build the image and run the memory bench on Linux (deferred by the owner; no Docker before then).
+5. Real licences for the other 10 provinces, to confirm each issuer prints a readable AAMVA barcode.
+6. Legal review of the Quebec Law 25 and municipal citations, the hand-controls rule, and audit-record retention.
+7. Security triage of the deferred items: a minimum API key length in production, and a re-review of `storage/local.py` after its last fix.

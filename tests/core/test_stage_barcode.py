@@ -38,9 +38,9 @@ def test_valid_card_passes():
 
 
 def test_failed_gates_listed_in_details():
-    card = render_card(make_aamva_text(fields=dict(FAKE_FIELDS, DCA="G2")))
+    card = render_card(make_aamva_text(fields=dict(FAKE_FIELDS, DBA="20200101")))
     result, _ = run_barcode_stage(card, CLAIMED, NOW)
-    assert result.details["gates_failed"] == ["CLASS_NOT_ALLOWED"]
+    assert result.details["gates_failed"] == ["LICENCE_EXPIRED"]
 
 
 def test_details_have_no_pii():
