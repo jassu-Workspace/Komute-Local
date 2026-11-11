@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
+import cv2
 import numpy as np
 
 from storage import BlobStore, Cipher, LocalStore
@@ -65,6 +66,14 @@ def _ext(data: bytes) -> str:
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "webp"
     return "bin"
+
+
+def _shrink(img: np.ndarray, max_side: int) -> np.ndarray:
+    h, w = img.shape[:2]
+    scale = max_side / max(h, w)
+    if scale >= 1:
+        return img
+    return cv2.resize(img, (max(1, round(w * scale)), max(1, round(h * scale))), interpolation=cv2.INTER_AREA)
 
 
 def _skipped(name: str) -> StageResult:
@@ -133,7 +142,10 @@ class Engine:
             for name, crop in r.crops.items():
                 writer.put(f"cropped/{name}.webp", encode_webp(crop, 90))
         for k in IMAGE_KEYS:
-            writer.put(f"compressed/{k}.webp", encode_webp(images[k], COMPRESS_QUALITY[k]))
+            writer.put(
+                f"compressed/{k}.webp",
+                encode_webp(_shrink(images[k], self._s.compressed_max_side), COMPRESS_QUALITY[k]),
+            )
 
         timings = {"total": 0.0}
         for r in results:

@@ -1,0 +1,14 @@
+.git
+.superpowers
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+Original Lisence's/
+samples/
+docs/
+tests/
+*.env
+# unused age-estimation models (dropped) are not shipped
+backend/models/genderage.onnx
+backend/models/mivolo_v2_age.onnx

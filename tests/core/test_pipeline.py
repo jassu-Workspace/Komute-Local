@@ -205,3 +205,13 @@ def test_record_is_sealed_with_consent_and_barcode_fields(settings, store):
     rec = json.loads(store.get(session_prefix("d1", "r1") + "/record.json"))
     assert rec["consent_policy_version"] == "v1" and rec["consent_at"].startswith("2026-11-11")
     assert rec["barcode_fields"]["DAQ"] == SECRET_LICENCE and rec["decision"] == "APPROVED"
+
+
+def test_compressed_tier_is_capped_originals_are_untouched(settings, store):
+    big = cv2.imencode(".jpg", np.random.default_rng(5).integers(0, 255, (1500, 2000, 3), dtype=np.uint8))[1].tobytes()
+    images = {k: big for k in IMAGE_KEYS}
+    engine(settings, store, Fakes()).verify(inp(images=images))
+    prefix = session_prefix("d1", "r1")
+    comp = cv2.imdecode(np.frombuffer(store.get(f"{prefix}/compressed/vehicle.webp"), np.uint8), cv2.IMREAD_COLOR)
+    assert max(comp.shape[:2]) == settings.compressed_max_side == 1280
+    assert store.get(f"{prefix}/originals/vehicle.jpg") == big

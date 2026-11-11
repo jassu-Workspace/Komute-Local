@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     plate_min_confidence: float = 0.6
     max_upload_bytes: int = 10_000_000
     max_image_side: int = 2048
+    compressed_max_side: int = 1280  # the compressed tier is smaller than the capped working image
     retry_after_s: int = 5
     rejected_images_ttl_h: int = 72
     approved_originals_ttl_d: int = 30
