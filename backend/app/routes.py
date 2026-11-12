@@ -83,9 +83,15 @@ _SECRET_FIELDS = {"api_key", "storage_key_b64", "manifest_key_b64"}
 _BUDGET_MB = {"steady_target": 900, "peak_limit": 1200}  # CLAUDE.md memory budget
 
 
-@router.get("/v1/system", dependencies=[Depends(require_api_key)])
-async def system(request: Request) -> JSONResponse:
-    """Live system and engine figures for the /stats page. Holds no personal data and no secrets."""
+@router.get("/v1/system", response_model=None)
+async def system(request: Request) -> JSONResponse | FileResponse:
+    """Live system and engine figures for the /stats page. Holds no personal data and no secrets.
+
+    A browser opening this URL gets the dashboard page (it holds no data); the page's own fetch gets JSON.
+    """
+    if "text/html" in request.headers.get("accept", ""):
+        return await stats_page()
+    require_api_key(request, request.headers.get("x-api-key"))
     s = request.app.state.settings
     sampler = getattr(request.app.state, "sampler", None)
     engine = request.app.state.engine

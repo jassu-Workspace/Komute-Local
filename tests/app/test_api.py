@@ -254,3 +254,7 @@ def test_stats_page_served_on_both_paths(settings):
     for path in ("/stats", "/system-stats"):
         r = client.get(path)
         assert r.status_code == 200 and "Komute System Monitor" in r.text and r.headers["Cache-Control"] == "no-store"
+    # A browser opening /v1/system gets the page without a key; the page's fetch (Accept */*) still needs one.
+    r = client.get("/v1/system", headers={"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"})
+    assert r.status_code == 200 and "Komute System Monitor" in r.text
+    assert client.get("/v1/system", headers={"Accept": "*/*"}).status_code == 401
