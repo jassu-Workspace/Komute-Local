@@ -12,6 +12,7 @@ from backend.core.config import Settings
 from backend.core.contracts import EngineError
 from backend.core.idempotency import IdempotencyConflict, save
 from backend.core.imaging import IMAGE_KEYS, decode_image
+from backend.core.monitor import EngineMonitor
 from storage import Cipher, LocalStore
 
 KEY = "test-api-key-123"
@@ -33,6 +34,7 @@ class FakeEngine:
     def __init__(self, settings, mode="ok"):
         self.store = LocalStore(settings.storage_root, Cipher(b"s" * 32, "s1"))
         self.mode, self.seen, self.models = mode, [], {"face_embedder": True, "plate_detector": True, "plate_ocr": True, "liveness": False}
+        self.monitor = EngineMonitor()
 
     def verify(self, inp):
         self.seen.append(inp)
@@ -46,6 +48,12 @@ class FakeEngine:
 
     def health_info(self):
         return {"models_loaded": self.models}
+
+    monitor = None  # set per instance below
+
+    def models_info(self):
+        return [{"role": "face_embedder", "stage": "face", "file": "w600k_r50.onnx", "loaded": True},
+                {"role": "liveness", "stage": "face", "file": None, "loaded": False}]
 
 
 def make(settings, mode="ok"):
@@ -217,3 +225,27 @@ def test_security_headers_on_every_response(settings):
     r = client.get("/health")
     assert r.headers["X-Content-Type-Options"] == "nosniff"
     assert "frame-ancestors 'none'" in r.headers["Content-Security-Policy"]
+
+
+def test_system_needs_key_and_hides_secrets(settings):
+    client, eng = make(settings)
+    assert client.get("/v1/system").status_code == 401
+    with client:  # runs the lifespan, so the system sampler starts
+        r = client.get("/v1/system", headers={"X-API-Key": KEY})
+    assert r.status_code == 200
+    body = r.json()
+    text = r.text
+    for secret in (KEY, b64(b"s" * 32), b64(b"m" * 32)):
+        assert secret not in text
+    assert body["settings"]["authentication"] is True and "api_key" not in body["settings"]
+    assert body["sample"]["memory"]["process_rss_mb"] > 0 and body["host"]["cpu_logical_cores"] >= 1
+    status = {m["role"]: m["status"] for m in body["models"]}
+    assert status == {"face_embedder": "idle", "liveness": "skipped (dev)"}
+    assert body["engine"]["busy"] is False and body["engine"]["gate_busy"] is False
+
+
+def test_stats_page_served_on_both_paths(settings):
+    client, _ = make(settings)
+    for path in ("/stats", "/system-stats"):
+        r = client.get(path)
+        assert r.status_code == 200 and "Komute System Monitor" in r.text and r.headers["Cache-Control"] == "no-store"

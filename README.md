@@ -50,6 +50,8 @@ Open `http://127.0.0.1:8000/` for the test page. Keep `--workers 1`. Settings an
 
 Responses: `200` with `{decision, reasons[{code, retryable, message}], stages, advisories, timings_ms, rss_mb, audit}`; `422` bad input (specific code); `401` bad key; `409` request id reused with other data; `503` busy (one verification at a time; honour `Retry-After`); `500` engine fault with **no** decision. Also `GET /v1/sessions/{request_id}`, `GET /health`, `GET /`.
 
+**System monitor:** open `/stats` (or `/system-stats`). It refreshes every second and shows process and system CPU (overall and per core), RSS against the 900 MB target and 1200 MB limit, peak RAM, 15-minute CPU and memory charts, each model's status (running, idle, not loaded, skipped in dev), load time, run timings, tensor shapes and SHA-256, the current engine stage, per-step timing statistics, the last verification, process, disk, host and software details, and the effective settings. Its data comes from `GET /v1/system` (same `X-API-Key` rule). That endpoint never sends secrets or personal data.
+
 If the barcode cannot be read the result is `REJECTED` / `BARCODE_UNREADABLE` (retryable): "The barcode on the back of your licence is not clearly visible. Please retake the photo of the barcode."
 
 ## Measured so far

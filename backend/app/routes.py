@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
@@ -76,6 +77,45 @@ async def health(request: Request) -> JSONResponse:
         {"status": "ok" if all(required) else "degraded", "models_loaded": loaded, "rss_mb": round(hardware.rss_mb(), 1)},
         status_code=200 if all(required) else 503,
     )
+
+
+_SECRET_FIELDS = {"api_key", "storage_key_b64", "manifest_key_b64"}
+_BUDGET_MB = {"steady_target": 900, "peak_limit": 1200}  # CLAUDE.md memory budget
+
+
+@router.get("/v1/system", dependencies=[Depends(require_api_key)])
+async def system(request: Request) -> JSONResponse:
+    """Live system and engine figures for the /stats page. Holds no personal data and no secrets."""
+    s = request.app.state.settings
+    sampler = getattr(request.app.state, "sampler", None)
+    engine = request.app.state.engine
+    activity = engine.monitor.snapshot()
+    models = engine.models_info()
+    for m in models:
+        m["status"] = ("running" if activity["busy"] and activity["stage"] == m["stage"] else "idle") if m["loaded"] else (
+            "skipped (dev)" if m["role"] == "liveness" and s.dev_skip_liveness else "not loaded")
+    settings_view = {k: (str(v) if not isinstance(v, (int, float, bool, type(None))) else v)
+                     for k, v in s.model_dump().items() if k not in _SECRET_FIELDS}
+    settings_view["authentication"] = s.api_key is not None
+    return JSONResponse({
+        "now": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        "host": sampler.static if sampler else None,
+        "sample": sampler.latest() if sampler else None,
+        "history": sampler.history() if sampler else [],
+        "budget_mb": _BUDGET_MB,
+        "engine": {**activity, "gate_busy": request.app.state.gate.busy(), "started_at": engine.monitor.started_at.isoformat()},
+        "models": models,
+        "settings": settings_view,
+    }, headers={"Cache-Control": "no-store"})
+
+
+@router.get("/stats", include_in_schema=False)
+@router.get("/system-stats", include_in_schema=False)
+async def stats_page() -> FileResponse:
+    page = STATIC / "stats.html"
+    if not page.exists():
+        raise ApiError(404, "NOT_FOUND", "Stats page not installed.")
+    return FileResponse(page, media_type="text/html", headers={"Cache-Control": "no-store"})
 
 
 @router.get("/favicon.ico", include_in_schema=False)

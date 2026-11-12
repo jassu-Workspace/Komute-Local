@@ -42,3 +42,14 @@ def test_page_is_responsive_and_storage_is_guarded():
     assert 'name="viewport"' in HTML
     assert re.search(r"try\s*\{[^}]*sessionStorage", HTML)
     assert re.search(r"all 13|\"ON\",\"QC\",\"BC\",\"AB\",\"MB\",\"SK\",\"NB\",\"NS\",\"NL\",\"PE\",\"YT\",\"NT\",\"NU\"", HTML)
+
+
+STATS = Path("backend/static/stats.html").read_text(encoding="utf-8")
+
+
+def test_stats_page_is_self_contained_and_safe():
+    assert "http://" not in STATS and "https://" not in STATS
+    assert not re.search(r"<(script|link)[^>]+(src|href)=", STATS)
+    assert "innerHTML" not in STATS and "document.write" not in STATS and "eval(" not in STATS
+    assert 'fetch("/v1/system"' in STATS and "X-API-Key" in STATS and 'name="viewport"' in STATS
+    assert re.search(r"try\s*\{[^}]*sessionStorage", STATS)

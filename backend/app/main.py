@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from backend.core.config import Settings, get_settings
 from backend.core.idempotency import IdempotencyConflict
+from backend.core.monitor import SystemSampler
 from backend.core.contracts import EngineError, InputError
 from backend.core.pipeline import Engine, build_engine
 from storage.retention import RetentionPolicy, sweep
@@ -57,8 +58,10 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
             app.state.engine = build_engine(settings)  # fails startup closed if models or keys are wrong
         thread = threading.Thread(target=_sweeper, args=(app.state.engine, settings, stop), daemon=True)
         thread.start()
+        app.state.sampler = SystemSampler(settings.storage_root).start()
         yield
         stop.set()
+        app.state.sampler.stop()
 
     app = FastAPI(title="Komute-Local", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings

@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Komute System Monitor</title>
+<style>
+  :root {
+    --paper:#f4f2ed; --card:#ffffff; --sunk:#faf9f6; --ink:#1b1f24; --ink-2:#4a5058; --muted:#6a6f76;
+    --line:#e2dfd6; --line-2:#cfcbc0; --accent:#27407a; --accent-soft:#e8ecf6; --proc:#c2571a;
+    --ok:#17794a; --ok-soft:#e4f3ea; --bad:#b42318; --bad-soft:#fbe9e7; --warn:#8a5b00; --warn-soft:#fbf0d6;
+    --r-m:10px; --r-l:14px;
+    --shadow:0 1px 2px rgba(27,31,36,.05), 0 6px 18px -8px rgba(27,31,36,.10);
+    --mono:ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:14.5px/1.5 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3,p { margin:0; }
+  .num { font-variant-numeric:tabular-nums; }
+  .mono { font-family:var(--mono); font-size:12.5px; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .top { position:sticky; top:0; z-index:5; background:rgba(244,242,237,.95); border-bottom:1px solid var(--line); backdrop-filter:blur(6px); }
+  .top-in { max-width:1320px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .brand b { display:block; font-size:16px; letter-spacing:-.01em; }
+  .brand span { display:block; font-size:12.5px; color:var(--muted); }
+  .top-right { margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pill { display:inline-flex; align-items:center; gap:7px; padding:4px 11px; border:1px solid var(--line-2); border-radius:99px; background:var(--card); font-size:12.5px; color:var(--ink-2); white-space:nowrap; }
+  .pill i { width:8px; height:8px; border-radius:50%; background:var(--muted); }
+  .pill.ok i { background:var(--ok); } .pill.bad i { background:var(--bad); } .pill.run i { background:var(--proc); animation:blink 1s infinite; }
+  .pill.ok { color:var(--ok); border-color:#b9dcc8; background:var(--ok-soft); }
+  .pill.bad { color:var(--bad); border-color:#efc2bc; background:var(--bad-soft); }
+  .pill.run { color:var(--proc); border-color:#efc9b0; background:#fdf0e6; }
+  .pill.warn { color:var(--warn); border-color:#ecd9a6; background:var(--warn-soft); }
+  @keyframes blink { 50% { opacity:.3; } }
+  @media (prefers-reduced-motion: reduce) { .pill.run i { animation:none; } }
+  a { color:var(--accent); }
+  .key { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); }
+  .key input { height:32px; width:180px; padding:0 10px; font:inherit; border:1px solid var(--line-2); border-radius:8px; background:var(--card); }
+  .btn { height:32px; padding:0 12px; border:1px solid var(--line-2); border-radius:8px; background:var(--card); font:inherit; font-size:13px; cursor:pointer; color:var(--ink); }
+  .btn:hover { border-color:#b9b4a6; }
+
+  .shell { max-width:1320px; margin:0 auto; padding:20px 24px 40px; display:grid; gap:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r-l); box-shadow:var(--shadow); padding:18px 20px; min-width:0; }
+  .card h2 { font-size:15px; letter-spacing:-.005em; margin-bottom:12px; display:flex; align-items:baseline; gap:10px; }
+  .card h2 small { font-weight:400; font-size:12.5px; color:var(--muted); }
+  .row2 { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:18px; }
+  .row3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:18px; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:12px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:var(--r-m); padding:13px 15px; box-shadow:var(--shadow); min-width:0; }
+  .kpi .l { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; font-weight:600; }
+  .kpi .v { font-size:24px; font-weight:650; letter-spacing:-.02em; margin-top:2px; }
+  .kpi .v small { font-size:13px; font-weight:500; color:var(--muted); margin-left:3px; }
+  .kpi .s { font-size:12.5px; color:var(--ink-2); margin-top:2px; }
+  .bar { height:7px; border-radius:4px; background:#eeebe3; margin-top:8px; position:relative; overflow:visible; }
+  .bar > b { display:block; height:100%; border-radius:4px; background:var(--accent); width:0; transition:width .4s; }
+  .bar > b.hot { background:var(--warn); } .bar > b.over { background:var(--bad); }
+  .bar > i { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink-2); opacity:.55; }
+
+  .chart svg { display:block; width:100%; height:auto; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); margin-top:6px; }
+  .legend span::before { content:""; display:inline-block; width:12px; height:3px; border-radius:2px; margin-right:6px; vertical-align:middle; background:var(--c); }
+
+  .cores { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:8px 14px; }
+  .core { font-size:12.5px; }
+  .core div { display:flex; justify-content:space-between; color:var(--ink-2); }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.03em; background:var(--sunk); }
+  td.r, th.r { text-align:right; }
+  tr:last-child td { border-bottom:0; }
+  .scroll { overflow-x:auto; }
+  dl.kv { display:grid; grid-template-columns:minmax(120px, max-content) minmax(0,1fr); gap:5px 16px; margin:0; font-size:13px; }
+  dl.kv dt { color:var(--muted); }
+  dl.kv dd { margin:0; word-break:break-word; }
+  .muted { color:var(--muted); }
+  .err { background:var(--bad-soft); border:1px solid #efc2bc; color:var(--bad); border-radius:var(--r-m); padding:10px 14px; font-size:13.5px; }
+  [hidden] { display:none !important; }
+
+  @media (max-width: 980px) { .row2, .row3 { grid-template-columns:1fr; } }
+  @media (max-width: 560px) { .top-in, .shell { padding-left:16px; padding-right:16px; } .key input { width:130px; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><b>Komute System Monitor</b><span>Live resource use of this Komute-Local node, sampled every second</span></div>
+    <div class="top-right">
+      <span class="pill" id="conn"><i></i><span>Connecting</span></span>
+      <span class="pill" id="engineState" aria-live="polite"><i></i><span>Engine</span></span>
+      <span class="pill num" id="updated"><span>Never updated</span></span>
+      <label class="key" for="apiKey">API key <input id="apiKey" type="password" autocomplete="off" placeholder="only if required"></label>
+      <button class="btn" id="pause" type="button">Pause</button>
+      <a href="/">Verify page</a>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="err" id="error" role="alert" hidden></div>
+
+  <section class="kpis" aria-label="Key figures">
+    <div class="kpi"><div class="l">Process CPU</div><div class="v num" id="kCpu">-</div><div class="s num" id="kCpuS">-</div><div class="bar"><b id="kCpuB"></b></div></div>
+    <div class="kpi"><div class="l">Process RAM (RSS)</div><div class="v num" id="kRss">-</div><div class="s num" id="kRssS">-</div><div class="bar" id="kRssBar"><b id="kRssB"></b><i id="kRssT" title="steady target"></i></div></div>
+    <div class="kpi"><div class="l">Peak RAM</div><div class="v num" id="kPeak">-</div><div class="s num" id="kPeakS">-</div><div class="bar"><b id="kPeakB"></b></div></div>
+    <div class="kpi"><div class="l">System CPU</div><div class="v num" id="kSys">-</div><div class="s num" id="kSysS">-</div><div class="bar"><b id="kSysB"></b></div></div>
+    <div class="kpi"><div class="l">System RAM</div><div class="v num" id="kMem">-</div><div class="s num" id="kMemS">-</div><div class="bar"><b id="kMemB"></b></div></div>
+    <div class="kpi"><div class="l">Verifications</div><div class="v num" id="kVer">-</div><div class="s num" id="kVerS">-</div></div>
+    <div class="kpi"><div class="l">Uptime</div><div class="v num" id="kUp">-</div><div class="s num" id="kUpS">-</div></div>
+  </section>
+
+  <section class="row2">
+    <div class="card chart"><h2>CPU <small id="cpuWin">last 15 minutes</small></h2><div id="cpuChart"></div>
+      <div class="legend"><span style="--c:#27407a">System (all cores)</span><span style="--c:#c2571a">Komute process (share of machine)</span></div></div>
+    <div class="card chart"><h2>Memory <small>process RSS, MB</small></h2><div id="memChart"></div>
+      <div class="legend"><span style="--c:#c2571a">Komute RSS</span><span style="--c:#17794a">900 MB steady target</span><span style="--c:#b42318">1200 MB peak limit</span></div></div>
+  </section>
+
+  <section class="card"><h2>Models <small>status, load and timing per model</small></h2>
+    <div class="scroll"><table>
+      <thead><tr><th scope="col">Role</th><th scope="col">Status</th><th scope="col">File</th><th scope="col">Runtime</th><th scope="col" class="r">Size</th><th scope="col" class="r">Load</th><th scope="col" class="r">Runs</th><th scope="col" class="r">Last</th><th scope="col" class="r">Mean</th><th scope="col" class="r">Min / Max</th><th scope="col">Inputs → Outputs</th><th scope="col">SHA-256</th></tr></thead>
+      <tbody id="models"></tbody>
+    </table></div>
+  </section>
+
+  <section class="row2">
+    <div class="card"><h2>Engine activity <small id="engineSub"></small></h2><dl class="kv" id="engine"></dl></div>
+    <div class="card"><h2>Last verification <small>no personal data</small></h2><dl class="kv" id="last"><dt>-</dt><dd class="muted">No verification since start.</dd></dl></div>
+  </section>
+
+  <section class="card"><h2>Step timings <small>every stage and step since start, ms</small></h2>
+    <div class="scroll"><table>
+      <thead><tr><th scope="col">Step</th><th scope="col" class="r">Count</th><th scope="col" class="r">Last</th><th scope="col" class="r">Mean</th><th scope="col" class="r">Min</th><th scope="col" class="r">Max</th></tr></thead>
+      <tbody id="steps"><tr><td colspan="6" class="muted">No verification since start.</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="card"><h2>CPU cores <small id="coresSub"></small></h2><div class="cores" id="cores"></div></section>
+
+  <section class="row3">
+    <div class="card"><h2>Process</h2><dl class="kv" id="proc"></dl></div>
+    <div class="card"><h2>Memory detail</h2><dl class="kv" id="mem"></dl></div>
+    <div class="card"><h2>Storage disk</h2><dl class="kv" id="disk"></dl></div>
+  </section>
+
+  <section class="row2">
+    <div class="card"><h2>Host</h2><dl class="kv" id="host"></dl></div>
+    <div class="card"><h2>Software and threads</h2><dl class="kv" id="soft"></dl></div>
+  </section>
+
+  <section class="card"><h2>Configuration <small>effective settings; secrets are never sent</small></h2><dl class="kv" id="settings"></dl></section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var NS = "http:" + "//www.w3.org/2000/svg" /* an XML namespace id, not a network request */;
+  var STEP_OF = { face_detector: "face.detect", face_embedder: "face.embed_match", liveness: "face.liveness", plate_detector: "vehicle.detect", plate_ocr: "vehicle.ocr" };
+  var paused = false, timer = null, failures = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined && text !== null) n.textContent = String(text); return n; }
+  function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+  function sv(tag, attrs, text) { var n = document.createElementNS(NS, tag); for (var k in attrs) n.setAttribute(k, attrs[k]); if (text !== undefined) n.textContent = text; return n; }
+  function fx(v, d, unit) { return v === null || v === undefined ? "-" : Number(v).toFixed(d) + (unit || ""); }
+  function mb(v) { return v === null || v === undefined ? "-" : (v >= 1024 ? (v / 1024).toFixed(2) + " GB" : v.toFixed(1) + " MB"); }
+  function dur(s) {
+    if (s === null || s === undefined) return "-";
+    s = Math.floor(s); var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+    return (d ? d + "d " : "") + (d || h ? h + "h " : "") + (d || h || m ? m + "m " : "") + x + "s";
+  }
+  function setBar(id, pct, warnAt, badAt) {
+    var b = $(id), p = Math.max(0, Math.min(100, pct || 0));
+    b.style.width = p + "%"; b.className = pct >= badAt ? "over" : pct >= warnAt ? "hot" : "";
+  }
+  function pill(node, cls, text) { node.className = "pill " + cls; node.lastChild.textContent = text; }
+  function kv(target, rows) {
+    clear(target);
+    rows.forEach(function (r) {
+      var dd = el("dd", r[2] || null, r[1] === null || r[1] === undefined || r[1] === "" ? "-" : r[1]);
+      if (r[3]) dd.title = r[3];
+      target.appendChild(el("dt", null, r[0])); target.appendChild(dd);
+    });
+  }
+  function td(text, cls, title) { var c = el("td", cls || null, text === null || text === undefined ? "-" : text); if (title) c.title = title; return c; }
+
+  function lineChart(host, series, opts) {
+    clear(host);
+    var W = 640, H = 210, L = 44, R = 12, T = 12, B = 26;
+    var hist = opts.points;
+    if (!hist.length) { host.appendChild(el("p", "muted", "Waiting for samples.")); return; }
+    var t0 = hist[0][0], t1 = Math.max(hist[hist.length - 1][0], t0 + 1);
+    var hi = opts.max;
+    function X(t) { return L + (t - t0) / (t1 - t0) * (W - L - R); }
+    function Y(v) { return T + (hi - Math.min(v, hi)) / (hi - opts.min) * (H - T - B); }
+    var svg = sv("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": opts.label });
+    for (var i = 0; i <= 4; i++) {
+      var v = opts.min + (hi - opts.min) * i / 4, y = Y(v);
+      svg.appendChild(sv("line", { x1: L, x2: W - R, y1: y, y2: y, stroke: "#e2dfd6" }));
+      svg.appendChild(sv("text", { x: L - 6, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "#6a6f76" }, Math.round(v) + opts.unit));
+    }
+    var span = t1 - t0;
+    for (var j = 0; j <= 4; j++) {
+      var tt = t0 + span * j / 4, ago = Math.round(t1 - tt);
+      svg.appendChild(sv("text", { x: X(tt), y: H - 7, "text-anchor": j === 0 ? "start" : j === 4 ? "end" : "middle", "font-size": 11, fill: "#6a6f76" }, ago ? "-" + dur(ago) : "now"));
+    }
+    (opts.refs || []).forEach(function (r) {
+      if (r.v > hi) return;
+      svg.appendChild(sv("line", { x1: L, x2: W - R, y1: Y(r.v), y2: Y(r.v), stroke: r.c, "stroke-dasharray": "5 4", "stroke-width": 1.3 }));
+    });
+    series.forEach(function (s) {
+      var pts = hist.map(function (p) { return X(p[0]).toFixed(1) + "," + Y(p[s.i]).toFixed(1); }).join(" ");
+      if (s.fill) svg.appendChild(sv("polygon", { points: X(t0) + "," + Y(opts.min) + " " + pts + " " + X(t1) + "," + Y(opts.min), fill: s.c, "fill-opacity": 0.09 }));
+      svg.appendChild(sv("polyline", { points: pts, fill: "none", stroke: s.c, "stroke-width": 1.8, "stroke-linejoin": "round" }));
+    });
+    host.appendChild(svg);
+  }
+
+  function render(d) {
+    var s = d.sample || {}, cpu = s.cpu || {}, m = s.memory || {}, pr = s.process || {}, h = d.host || {}, e = d.engine || {};
+    var budget = d.budget_mb || { steady_target: 900, peak_limit: 1200 };
+    var logical = h.cpu_logical_cores || 1;
+
+    $("kCpu").textContent = fx(cpu.process_percent_of_machine, 1, " %");
+    $("kCpuS").textContent = fx(cpu.process_percent, 1, " %") + " of one core · " + logical + " logical cores";
+    setBar("kCpuB", cpu.process_percent_of_machine, 60, 85);
+    $("kRss").textContent = fx(m.process_rss_mb, 1); $("kRss").appendChild(el("small", null, "MB"));
+    $("kRssS").textContent = fx(m.process_rss_mb / budget.steady_target * 100, 1, " %") + " of " + budget.steady_target + " MB target";
+    setBar("kRssB", m.process_rss_mb / budget.peak_limit * 100, budget.steady_target / budget.peak_limit * 100, 100);
+    $("kRssT").style.left = (budget.steady_target / budget.peak_limit * 100) + "%";
+    $("kPeak").textContent = fx(m.process_peak_rss_mb, 1); $("kPeak").appendChild(el("small", null, "MB"));
+    $("kPeakS").textContent = fx(m.process_peak_rss_mb / budget.peak_limit * 100, 1, " %") + " of " + budget.peak_limit + " MB limit";
+    setBar("kPeakB", m.process_peak_rss_mb / budget.peak_limit * 100, 75, 100);
+    $("kSys").textContent = fx(cpu.system_percent, 1, " %");
+    $("kSysS").textContent = cpu.freq_mhz ? fx(cpu.freq_mhz, 0, " MHz") + (h.cpu_max_mhz ? " of " + h.cpu_max_mhz + " MHz max" : "") : "-";
+    setBar("kSysB", cpu.system_percent, 70, 90);
+    $("kMem").textContent = fx(m.system_percent, 1, " %");
+    $("kMemS").textContent = mb(m.system_used_mb) + " used · " + mb(m.system_available_mb) + " free";
+    setBar("kMemB", m.system_percent, 75, 90);
+    var c = e.counts || {};
+    $("kVer").textContent = c.verifications === undefined ? "-" : c.verifications;
+    $("kVerS").textContent = (c.approved || 0) + " approved · " + (c.rejected || 0) + " rejected · " + (c.errors || 0) + " errors";
+    $("kUp").textContent = dur(s.uptime_s);
+    $("kUpS").textContent = "since " + (e.started_at ? new Date(e.started_at).toLocaleString() : "-");
+
+    if (e.busy) pill($("engineState"), "run", "Running: " + e.stage + " (" + fx(e.stage_for_ms / 1000, 1, " s") + ")");
+    else pill($("engineState"), "ok", "Engine idle");
+
+    var hist = d.history || [];
+    var cpuMax = Math.max(100, 0);
+    lineChart($("cpuChart"), [{ i: 1, c: "#27407a", fill: true }, { i: 2, c: "#c2571a" }],
+      { points: hist, min: 0, max: cpuMax, unit: "%", label: "CPU over time: system " + fx(cpu.system_percent, 1, "%") + ", process " + fx(cpu.process_percent_of_machine, 1, "%") });
+    var rssMax = Math.max.apply(null, hist.map(function (p) { return p[3]; }).concat([100]));
+    var memTop = Math.ceil(Math.max(rssMax * 1.15, budget.peak_limit * 1.08) / 100) * 100;  // keep both budget lines in view
+    lineChart($("memChart"), [{ i: 3, c: "#c2571a", fill: true }],
+      { points: hist, min: 0, max: memTop, unit: "", label: "Process memory over time, now " + fx(m.process_rss_mb, 1) + " MB",
+        refs: [{ v: budget.steady_target, c: "#17794a" }, { v: budget.peak_limit, c: "#b42318" }] });
+    $("cpuWin").textContent = hist.length ? "last " + dur(hist[hist.length - 1][0] - hist[0][0]) + " · " + hist.length + " samples" : "";
+
+    var steps = e.steps || {};
+    var tb = $("models"); clear(tb);
+    (d.models || []).forEach(function (mo) {
+      var tr = el("tr"), st = steps[STEP_OF[mo.role]] || { count: 0 };
+      tr.appendChild(td(mo.role));
+      var sc = el("td"), p = el("span", "pill " + (mo.status === "running" ? "run" : mo.status === "idle" ? "ok" : mo.status.indexOf("skipped") === 0 ? "warn" : "bad"));
+      p.appendChild(el("i")); p.appendChild(el("span", null, mo.status)); sc.appendChild(p); tr.appendChild(sc);
+      tr.appendChild(td(mo.file, "mono"));
+      tr.appendChild(td(mo.runtime + (mo.providers ? " · " + mo.providers.join(", ").replace("ExecutionProvider", "") : "")));
+      tr.appendChild(td(mo.size_mb === null ? "-" : mo.size_mb.toFixed(2) + " MB", "r num"));
+      tr.appendChild(td(mo.load_ms === undefined || mo.load_ms === null ? "-" : mo.load_ms.toFixed(1) + " ms", "r num"));
+      tr.appendChild(td(st.count, "r num"));
+      tr.appendChild(td(st.count ? st.last_ms.toFixed(1) + " ms" : "-", "r num"));
+      tr.appendChild(td(st.count ? st.mean_ms.toFixed(1) + " ms" : "-", "r num"));
+      tr.appendChild(td(st.count ? st.min_ms.toFixed(1) + " / " + st.max_ms.toFixed(1) : "-", "r num"));
+      var sig = mo.inputs ? mo.inputs.map(function (x) { return x.name + " [" + x.shape.join("×") + "]"; }).join(", ") + " → " +
+        mo.outputs.map(function (x) { return x.name + " [" + x.shape.join("×") + "]"; }).join(", ") : (mo.loaded ? "OpenCV-managed" : "-");
+      tr.appendChild(td(sig, "mono"));
+      tr.appendChild(td(mo.sha256 ? mo.sha256.slice(0, 12) + "…" + (mo.hash_verified ? " ✓" : "") : "-", "mono", mo.sha256 || ""));
+      tb.appendChild(tr);
+    });
+
+    kv($("engine"), [
+      ["State", e.busy ? "running" : "idle"],
+      ["Current stage", e.stage || "-"],
+      ["Stage running for", e.stage_for_ms === null ? "-" : fx(e.stage_for_ms, 0, " ms")],
+      ["Verification for", e.busy_for_ms === null ? "-" : fx(e.busy_for_ms, 0, " ms")],
+      ["Run gate", e.gate_busy ? "held (a 2nd request gets 503)" : "free"],
+      ["Approved", c.approved], ["Rejected", c.rejected], ["Errors (no decision)", c.errors],
+      ["Engine started", e.started_at ? new Date(e.started_at).toLocaleString() : "-"]
+    ]);
+    $("engineSub").textContent = "one verification at a time";
+    var la = e.last;
+    if (la) {
+      var t = la.timings_ms || {};
+      kv($("last"), [
+        ["Finished", new Date(la.finished_at).toLocaleString()],
+        ["Decision", la.decision, la.decision === "APPROVED" ? "" : ""],
+        ["Reason codes", (la.reasons || []).join(", ") || "none"],
+        ["Total", fx(la.total_ms, 1, " ms")],
+        ["Barcode / Face / Vehicle", fx(t.barcode, 1) + " / " + fx(t.face, 1) + " / " + fx(t.vehicle, 1) + " ms"],
+        ["RAM start → peak → end", fx(la.rss_start_mb, 1) + " → " + fx(la.rss_peak_mb, 1) + " → " + fx(la.rss_end_mb, 1) + " MB"],
+        ["Peak rise", fx(la.rss_peak_mb - la.rss_start_mb, 1, " MB")]
+      ]);
+    }
+    var sk = Object.keys(steps);
+    if (sk.length) {
+      var stb = $("steps"); clear(stb);
+      sk.forEach(function (k) {
+        var v = steps[k], tr = el("tr");
+        tr.appendChild(td(k, "mono"));
+        [v.count, v.last_ms, v.mean_ms, v.min_ms, v.max_ms].forEach(function (x, ix) { tr.appendChild(td(ix === 0 ? x : fx(x, 1), "r num")); });
+        stb.appendChild(tr);
+      });
+    }
+
+    var cores = $("cores"); clear(cores);
+    (cpu.per_core_percent || []).forEach(function (p, ix) {
+      var w = el("div", "core"), top = el("div"), bar = el("div", "bar"), b = el("b");
+      top.appendChild(el("span", null, "Core " + ix)); top.appendChild(el("span", "num", fx(p, 1, " %")));
+      b.style.width = Math.min(100, p) + "%"; if (p >= 90) b.className = "over"; else if (p >= 70) b.className = "hot";
+      bar.appendChild(b); w.appendChild(top); w.appendChild(bar); cores.appendChild(w);
+    });
+    $("coresSub").textContent = (h.cpu_physical_cores || "?") + " physical · " + logical + " logical";
+
+    var io = pr.io_rate || {};
+    kv($("proc"), [
+      ["PID", h.pid], ["Threads", pr.threads], ["Handles / FDs", pr.handles],
+      ["CPU time user", fx(cpu.process_user_s, 2, " s")], ["CPU time system", fx(cpu.process_system_s, 2, " s")],
+      ["Disk read total", mb(pr.io_read_mb)], ["Disk write total", mb(pr.io_write_mb)],
+      ["Disk read rate", fx(io.read_kb_s, 1, " KB/s")], ["Disk write rate", fx(io.write_kb_s, 1, " KB/s")]
+    ]);
+    kv($("mem"), [
+      ["RSS (working set)", fx(m.process_rss_mb, 1, " MB")], ["Peak RSS", fx(m.process_peak_rss_mb, 1, " MB")],
+      ["Private bytes", m.process_private_mb === null ? "n/a on this OS" : fx(m.process_private_mb, 1, " MB")],
+      ["Virtual size", mb(m.process_vms_mb)], ["Page faults", m.process_page_faults === null ? "n/a" : Number(m.process_page_faults).toLocaleString()],
+      ["System used", mb(m.system_used_mb) + " (" + fx(m.system_percent, 1, " %") + ")"], ["System free", mb(m.system_available_mb)],
+      ["System total", mb(h.ram_total_mb)], ["Swap / page file", mb(m.swap_used_mb) + " of " + mb(m.swap_total_mb) + " (" + fx(m.swap_percent, 1, " %") + ")"]
+    ]);
+    var dk = s.disk || {};
+    kv($("disk"), dk.error ? [["Path", dk.path, "mono"], ["Status", dk.error]] : [
+      ["Path", dk.path, "mono"], ["Total", fx(dk.total_gb, 2, " GB")], ["Used", fx(dk.used_gb, 2, " GB") + " (" + fx(dk.percent, 1, " %") + ")"],
+      ["Free", fx(dk.free_gb, 2, " GB")]
+    ]);
+    kv($("host"), [
+      ["OS", h.os], ["OS build", h.os_version], ["Architecture", h.machine], ["CPU", h.cpu_model],
+      ["Cores", (h.cpu_physical_cores || "?") + " physical, " + logical + " logical"], ["Max clock", fx(h.cpu_max_mhz, 0, " MHz")],
+      ["RAM", mb(h.ram_total_mb)], ["Last boot", h.boot_time ? new Date(h.boot_time).toLocaleString() : "-"]
+    ]);
+    var vers = h.versions || {}, te = h.thread_env || {};
+    kv($("soft"), Object.keys(vers).map(function (k) { return [k, vers[k] || "not installed", "mono"]; }).concat(
+      Object.keys(te).map(function (k) { return [k, te[k] || "unset", "mono"]; })));
+    var st2 = d.settings || {};
+    kv($("settings"), Object.keys(st2).sort().map(function (k) { return [k, String(st2[k]), "mono"]; }));
+
+    $("updated").firstChild.textContent = "Updated " + new Date(d.now).toLocaleTimeString();
+  }
+
+  function poll() {
+    if (paused) return;
+    var headers = {}, key = $("apiKey").value.trim();
+    try { sessionStorage.setItem("kmt_key", key); } catch (e) { /* storage may be blocked */ }
+    if (key) headers["X-API-Key"] = key;
+    fetch("/v1/system", { headers: headers, cache: "no-store" }).then(function (r) {
+      return r.json().then(function (body) { return { ok: r.ok, status: r.status, body: body }; });
+    }).then(function (res) {
+      if (!res.ok) throw new Error(res.status === 401 ? "The node needs an API key. Enter it above." : (res.body && res.body.message) || ("HTTP " + res.status));
+      failures = 0; $("error").hidden = true; pill($("conn"), "ok", "Live");
+      render(res.body);
+    }).catch(function (err) {
+      failures += 1; pill($("conn"), "bad", failures > 2 ? "Offline" : "Retrying");
+      $("error").textContent = err.message || "The node is not reachable."; $("error").hidden = false;
+    }).then(function () { timer = setTimeout(poll, failures > 2 ? 3000 : 1000); });
+  }
+
+  try { $("apiKey").value = sessionStorage.getItem("kmt_key") || ""; } catch (e) { /* storage may be blocked */ }
+  $("pause").addEventListener("click", function () {
+    paused = !paused; this.textContent = paused ? "Resume" : "Pause";
+    if (!paused) { clearTimeout(timer); poll(); } else pill($("conn"), "warn", "Paused");
+  });
+  poll();
+})();
+</script>
+</body>
+</html>

@@ -27,6 +27,7 @@ from .contracts import (
 )
 from .idempotency import IdempotencyConflict, lookup, save
 from .imaging import IMAGE_KEYS, decode_image, encode_webp
+from .monitor import EngineMonitor
 
 log = logging.getLogger("komute.engine")
 
@@ -90,6 +91,8 @@ class Engine:
         self._clock = clock
         self._manifest_key = base64.b64decode(settings.manifest_key_b64.get_secret_value())
         self.health_info: Callable[[], dict] = lambda: {"models_loaded": {}}
+        self.models_info: Callable[[], list[dict]] = lambda: []
+        self.monitor = EngineMonitor()
 
     @property
     def store(self) -> BlobStore:
@@ -99,11 +102,14 @@ class Engine:
         cached = lookup(self._store, inp.request_id, inp.payload_sha256)  # may raise IdempotencyConflict
         if cached is not None:
             return cached
+        self.monitor.begin()
         try:
             return self._run(inp)
         except (InputError, IdempotencyConflict):
+            self.monitor.abandon()
             raise
         except Exception as e:  # the one fail-closed boundary: any fault is an error, never a decision
+            self.monitor.failed()
             log.error("engine fault request_id=%s type=%s", inp.request_id, type(e).__name__)
             raise EngineError("ENGINE_ERROR") from e
         finally:
@@ -119,6 +125,7 @@ class Engine:
         images = {k: decode_image(inp.image_bytes[k], self._s.max_image_side) for k in IMAGE_KEYS}
 
         mem.mark("decoded")
+        self.monitor.stage("store")
         prefix = session_prefix(inp.driver_id, inp.request_id)
         self._store.delete_prefix(prefix)  # a retry starts clean: leftovers of a crashed run are never trusted
         writer = SessionWriter(self._store, prefix, self._manifest_key, self._s.manifest_key_id, now)
@@ -126,16 +133,20 @@ class Engine:
             writer.put(f"originals/{k}.{_ext(inp.image_bytes[k])}", inp.image_bytes[k])
 
         mem.mark("stored")
+        self.monitor.stage("barcode")
         barcode, record = self._stages.barcode(images["licence_back"], inp.claimed, now)
         mem.mark("barcode")
         if barcode.reasons:
             face, vehicle = _skipped("face"), _skipped("vehicle")
         else:
+            self.monitor.stage("face")
             face = self._stages.face(images["selfie"], images["licence_front"])
             mem.mark("face")
+            self.monitor.stage("vehicle")
             vehicle = self._stages.vehicle(images["vehicle"], inp.claimed)
             mem.mark("vehicle")
         results = [barcode, face, vehicle]
+        self.monitor.stage("audit")
 
         reasons: list[Reason] = []
         for r in results:
@@ -197,6 +208,7 @@ class Engine:
             "audit": {"manifest_id": manifest_id, "key_id": self._s.manifest_key_id},
         }
         save(self._store, inp.request_id, inp.driver_id, inp.payload_sha256, response)
+        self.monitor.done(response, {f"{r.name}.{k}": v for r in results for k, v in r.timings_ms.items()})
         return response
 
 
@@ -268,4 +280,5 @@ def build_engine(settings: Settings, clock: Callable[[], datetime] = _utc_now) -
         _warm_up(detector, embedder_session, plate_detector, plate_ocr)
     engine = Engine(settings, store, stages, clock)
     engine.health_info = lambda: {"models_loaded": dict(registry.loaded)}
+    engine.models_info = registry.describe
     return engine

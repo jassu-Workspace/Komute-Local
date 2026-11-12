@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -48,6 +49,8 @@ class ModelRegistry:
         self._sessions: dict[str, ort.InferenceSession] = {}
         self.face_detector_path = models_dir / _DETECTOR  # loaded by OpenCV (FaceDetectorYN), not ORT
         self.loaded: dict[str, bool] = {n: False for n in (*_FILES, "liveness")}
+        self._load_ms: dict[str, float] = {}
+        self._hashes: dict[str, str] = {}
 
     def load(self) -> None:
         if self._sessions:
@@ -61,9 +64,13 @@ class ModelRegistry:
             lname = self._liveness.name
             if lname not in lock or not self._liveness.is_file() or _sha256(self._liveness) != lock[lname]:
                 raise ModelHashMismatch(lname)
-        sessions = {n: self._open(self._dir / f) for n, f in _FILES.items()}
-        if self._liveness is not None:
-            sessions["liveness"] = self._open(self._liveness)
+        sessions = {}
+        for n, path in [*((n, self._dir / f) for n, f in _FILES.items()),
+                        *([("liveness", self._liveness)] if self._liveness is not None else [])]:
+            t = time.perf_counter()
+            sessions[n] = self._open(path)
+            self._load_ms[n] = round((time.perf_counter() - t) * 1000, 1)
+        self._hashes = dict(lock)
         self.loaded.update({n: n in sessions for n in self.loaded})
         self._sessions = sessions  # assigned last: a failed load leaves the registry empty
 
@@ -73,3 +80,27 @@ class ModelRegistry:
 
     def session(self, name: Name) -> ort.InferenceSession:
         return self._sessions[name]
+
+    def describe(self) -> list[dict]:
+        """Per-model facts for monitoring: file, size, locked hash, runtime, load time, tensor signatures."""
+        def io(args) -> list[dict]:
+            return [{"name": a.name, "shape": [d if isinstance(d, int) else str(d) for d in (a.shape or [])], "type": a.type}
+                    for a in args]
+
+        rows = [{"role": "face_detector", "stage": "face", "file": _DETECTOR, "runtime": "OpenCV FaceDetectorYN",
+                 "loaded": bool(self._sessions), "path": self.face_detector_path}]
+        for n in (*_FILES, "liveness"):
+            path = self._liveness if n == "liveness" else self._dir / _FILES[n]
+            row = {"role": n, "stage": "face" if n in ("face_embedder", "liveness") else "vehicle",
+                   "file": path.name if path else None, "runtime": "ONNX Runtime", "loaded": n in self._sessions, "path": path}
+            sess = self._sessions.get(n)
+            if sess is not None:
+                row.update(providers=sess.get_providers(), load_ms=self._load_ms.get(n),
+                           inputs=io(sess.get_inputs()), outputs=io(sess.get_outputs()))
+            rows.append(row)
+        for row in rows:
+            path = row.pop("path")
+            row["size_mb"] = round(path.stat().st_size / 1_048_576, 2) if path is not None and path.is_file() else None
+            row["sha256"] = self._hashes.get(row["file"]) if row["file"] else None
+            row["hash_verified"] = row["loaded"] and row["sha256"] is not None
+        return rows
