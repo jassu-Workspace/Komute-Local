@@ -94,15 +94,15 @@ def decode_pdf417(img_bgr: np.ndarray, budget_s: float = DEFAULT_BUDGET_S) -> Op
 
 def run_barcode_stage(
     licence_back: np.ndarray, claimed: Claimed, now_utc: datetime, budget_s: float = DEFAULT_BUDGET_S,
-    name_threshold: float = 85.0, min_age: int = 18,
+    name_threshold: float = 90.0, min_age: int = 18,
 ) -> tuple[StageResult, Optional[AamvaRecord]]:
-    """Decode, parse and gate. `details` holds no personal data: the engine seals the record separately."""
+    """Decode, parse and gate. `details["checks"]` holds claimed and decoded values (personal data, never logged)."""
     result = StageResult(name="barcode", ran=True)
     t0 = time.perf_counter()
     text = decode_pdf417(licence_back, budget_s=budget_s)
     t1 = time.perf_counter()
     result.timings_ms["decode"] = round((t1 - t0) * 1000, 1)
-    result.details = {"readable": text is not None, "aamva": False, "jurisdiction": None, "gates_failed": []}
+    result.details = {"readable": text is not None, "aamva": False, "jurisdiction": None, "gates_failed": [], "checks": []}
     if text is None:
         result.reasons.append(Reason.of(ReasonCode.BARCODE_UNREADABLE))
         return result, None
@@ -114,7 +114,9 @@ def run_barcode_stage(
         return result, None
     result.details["aamva"] = True
     result.details["jurisdiction"] = IIN_TO_PROVINCE.get(record.iin)
-    result.reasons, result.advisories = licence_gates(record, claimed, now_utc, name_threshold, min_age)
+    result.reasons, result.advisories, result.details["checks"] = licence_gates(
+        record, claimed, now_utc, name_threshold, min_age
+    )
     result.details["gates_failed"] = [r.code.value for r in result.reasons]
     result.timings_ms["gates"] = round((time.perf_counter() - t2) * 1000, 1)
     return result, record

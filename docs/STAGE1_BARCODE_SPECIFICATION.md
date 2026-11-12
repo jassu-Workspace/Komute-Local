@@ -24,11 +24,15 @@ Decodes the AAMVA PDF417 on the licence back, parses it, and runs the licence ga
 |---|---|---|
 | Jurisdiction | claimed province = province of the IIN = province in `DAJ` (`NF` counts as `NL`) | `JURISDICTION_MISMATCH` |
 | Licence number | barcode `DAQ` equals the claimed number after removing everything but `A–Z`, `0–9`, `*`. The owner's regex is an advisory only | `LICENCE_NUMBER_MISMATCH` (advisory `LICENCE_FORMAT_UNUSUAL`) |
-| Name | accents and punctuation removed, token-sort match ≥ 85, or every claimed token appears exactly in the barcode name (≥ 2 tokens) | `NAME_MISMATCH` |
+| Name | accents and punctuation removed, token-sort match ≥ 90 (`KOMUTE_NAME_MATCH_THRESHOLD`), or every claimed token appears exactly in the barcode name (≥ 2 tokens) | `NAME_MISMATCH` |
 | Date of birth | exact match to `DBB` | `DOB_MISMATCH` |
+| Class | claimed class equals `DCA` (letters and digits only, case ignored). Missing on either side fails | `CLASS_MISMATCH` |
+| Issue date | exact match to `DBD` | `ISSUE_DATE_MISMATCH` |
+| Expiry date | exact match to `DBA` | `EXPIRY_DATE_MISMATCH` |
 | Expiry | valid through the end of `DBA` in the issuing province's time zone | `LICENCE_EXPIRED` |
+| Not yet valid | `DBD` is after that local date | `LICENCE_NOT_YET_VALID` |
 | Age | 18 or older on that local date, from the barcode date of birth | `UNDERAGE` |
 
-Any class and any restriction code is accepted in every province. Only age 18+ and an unexpired licence decide eligibility.
+Any class and any restriction code is accepted in every province: the class is only cross-checked against the claim. Eligibility is age 18+, an unexpired licence and an issue date that is not in the future. Each cross-checked field also returns a check row (`stages.barcode.checks`) with a 0–100 match score.
 
 Any Stage 1 failure stops the pipeline: Stages 2 and 3 do not run.

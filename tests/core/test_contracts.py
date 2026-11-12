@@ -8,7 +8,7 @@ EXPECTED_RETRYABLE = {
 
 
 def test_every_code_has_message_and_retry_flag_matches_spec():
-    assert len(R) == 16
+    assert len(R) == 20
     assert set(MESSAGES) == set(R)
     assert all(MESSAGES[c].strip() for c in R)
     assert RETRYABLE == EXPECTED_RETRYABLE

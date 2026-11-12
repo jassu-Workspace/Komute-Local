@@ -68,7 +68,7 @@ def test_production_rejects_short_api_key_dev_allows_it():
 
 def test_new_tunables_default_and_are_bounded():
     s = make()
-    assert (s.name_match_threshold, s.min_age, s.plate_detect_score, s.barcode_budget_s) == (85.0, 18, 0.35, 10.0)
+    assert (s.name_match_threshold, s.min_age, s.plate_detect_score, s.barcode_budget_s) == (90.0, 18, 0.35, 10.0)
     for bad in ({"face_match_threshold": 0.01}, {"min_age": 5}, {"name_match_threshold": 10}, {"barcode_budget_s": 0}):
         with pytest.raises(ValidationError):
             make(**bad)

@@ -134,6 +134,7 @@ if ($WithApiKey) {
 }
 $env:PYTHONUTF8 = '1'
 $env:KOMUTE_ENV = 'dev'
+if (-not $env:KOMUTE_RESPONSE_BARCODE_FIELDS) { $env:KOMUTE_RESPONSE_BARCODE_FIELDS = 'true' }  # the test page shows all decoded fields
 if (-not $env:KOMUTE_STORAGE_ROOT) { $env:KOMUTE_STORAGE_ROOT = Join-Path $Home_ 'storage' }
 if ($env:KOMUTE_STORAGE_ROOT -match 'OneDrive') { Fail "KOMUTE_STORAGE_ROOT must not be inside OneDrive: $env:KOMUTE_STORAGE_ROOT" }
 if ($env:KOMUTE_LIVENESS_MODEL) {

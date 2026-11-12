@@ -69,6 +69,7 @@ FIELDS = {
     "request_id": "req-1", "driver_id": "drv-1", "consent_at": "2026-11-11T12:00:00Z", "consent_policy_version": "v1",
     "claimed.full_name": "Alex Tester", "claimed.date_of_birth": "1990-03-15", "claimed.licence_number": "T1234-56789-01234",
     "claimed.issuing_province": "ON", "claimed.plate_number": "ABC123", "claimed.vehicle_colour": "Grey",
+    "claimed.licence_class": "G", "claimed.issue_date": "2023-09-14", "claimed.expiry_date": "2030-12-31",
 }
 
 
@@ -95,6 +96,7 @@ def test_happy_path_returns_engine_response(settings):
     assert r.status_code == 200 and r.json()["decision"] == "APPROVED"
     inp = eng.seen[0]
     assert inp.request_id == "req-1" and inp.claimed.date_of_birth.isoformat() == "1990-03-15"
+    assert (inp.claimed.licence_class, str(inp.claimed.issue_date), str(inp.claimed.expiry_date)) == ("G", "2023-09-14", "2030-12-31")
     assert inp.consent_at.tzinfo is not None and len(inp.payload_sha256) == 64
 
 
@@ -123,6 +125,9 @@ def test_missing_field_and_bad_date_422(settings):
     assert code(post(c, drop=("claimed.full_name",))) == "MISSING_FIELD"
     assert code(post(c, {**FIELDS, "claimed.date_of_birth": "15/03/1990"})) == "INVALID_FIELD"
     assert code(post(c, {**FIELDS, "claimed.vehicle_year": "abc"})) == "INVALID_FIELD"
+    for name in ("claimed.licence_class", "claimed.issue_date", "claimed.expiry_date"):
+        assert code(post(c, drop=(name,))) == "MISSING_FIELD"
+    assert code(post(c, {**FIELDS, "claimed.expiry_date": "2030/12/31"})) == "INVALID_FIELD"
 
 
 def test_request_id_rejects_path_characters(settings):

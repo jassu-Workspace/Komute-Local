@@ -93,7 +93,8 @@ def main() -> None:
     for i in range(a.runs):
         c = cards[i % len(cards)]
         rec = c["rec"]
-        claimed = Claimed(rec.full_name(), rec.date("DBB"), rec.fields["DAQ"], IIN_TO_PROVINCE[rec.iin], "ABC123", "Grey")
+        claimed = Claimed(rec.full_name(), rec.date("DBB"), rec.fields["DAQ"], IIN_TO_PROVINCE[rec.iin], "ABC123", "Grey",
+                          licence_class=rec.fields.get("DCA"), issue_date=rec.date("DBD"), expiry_date=rec.date("DBA"))
         imgs = {"selfie": c["front"], "licence_front": c["front"], "licence_back": c["back"], "vehicle": vehicle}
         inp = VerifyInput(f"bench-{i}", f"d{i % len(cards)}", datetime.now(timezone.utc), "v1", claimed, imgs, f"{i:064d}")
         t = time.perf_counter()

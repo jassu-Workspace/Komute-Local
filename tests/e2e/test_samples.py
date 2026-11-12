@@ -78,6 +78,8 @@ def claim(rec, **over):
         "claimed.full_name": rec.full_name(), "claimed.date_of_birth": dob.isoformat(),
         "claimed.licence_number": rec.fields["DAQ"], "claimed.issuing_province": IIN_TO_PROVINCE[rec.iin],
         "claimed.plate_number": "ABC123", "claimed.vehicle_colour": "Grey",
+        "claimed.licence_class": rec.fields["DCA"], "claimed.issue_date": rec.date("DBD").isoformat(),
+        "claimed.expiry_date": rec.date("DBA").isoformat(),
     }
     f.update(over)
     return f
@@ -126,6 +128,9 @@ def test_baseline_vehicle_stage_runs_on_synthetic_scene(env, cards, p):
     ("wrong-name", {"claimed.full_name": "Zed Nobody"}, "NAME_MISMATCH"),
     ("wrong-licence", {"claimed.licence_number": "99999999"}, "LICENCE_NUMBER_MISMATCH"),
     ("wrong-province", {"claimed.issuing_province": "NU"}, "JURISDICTION_MISMATCH"),
+    ("wrong-class", {"claimed.licence_class": "ZZ9"}, "CLASS_MISMATCH"),
+    ("wrong-issue", {"claimed.issue_date": "1901-01-01"}, "ISSUE_DATE_MISMATCH"),
+    ("wrong-expiry", {"claimed.expiry_date": "2199-01-01"}, "EXPIRY_DATE_MISMATCH"),
 ])
 def test_wrong_claims_are_rejected_with_final_reasons(env, cards, p, case, over, code):
     r, codes, body = run(env, p, cards[p], case, fields=over)

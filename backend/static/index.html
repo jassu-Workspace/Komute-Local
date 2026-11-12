@@ -167,6 +167,24 @@
   .conn-in { max-width:1240px; margin:0 auto; padding:14px 24px 16px; background:var(--card); border-bottom:1px solid var(--line); display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end; }
   .conn-in > div { min-width:260px; flex:1; }
 
+  /* decoded-barcode dialog */
+  dialog.dec { width:min(860px, calc(100vw - 32px)); max-height:calc(100vh - 48px); padding:0; border:1px solid var(--line); border-radius:var(--r-l); box-shadow:var(--shadow); color:var(--ink); background:var(--card); }
+  dialog.dec::backdrop { background:rgba(27,31,36,.45); }
+  .dec-h { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--card); }
+  .dec-h h2 { font-size:17px; } .dec-h .mini { margin-left:auto; }
+  .dec-b { padding:16px 20px 20px; }
+  .dec-b h3 { font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin:18px 0 8px; font-weight:700; }
+  .dec-b h3:first-child { margin-top:0; }
+  .tbl-wrap { overflow-x:auto; }
+  table.cmp { width:100%; min-width:600px; border-collapse:collapse; font-size:13.5px; }
+  table.cmp th { text-align:left; font-size:12px; color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--line-2); white-space:nowrap; }
+  table.cmp td { padding:8px; border-bottom:1px solid var(--line); vertical-align:top; word-break:break-word; }
+  table.cmp td.n { text-align:right; white-space:nowrap; }
+  table.cmp tr.no td { background:var(--bad-soft); }
+  .res { font-size:11px; font-weight:700; letter-spacing:.04em; padding:2px 8px; border-radius:5px; white-space:nowrap; }
+  .res.ok { background:var(--ok-soft); color:var(--ok); } .res.no { background:var(--bad-soft); color:var(--bad); }
+  .small-btn { height:32px; padding:0 12px; font-size:13px; margin-top:10px; }
+
   @media (max-width:980px) { .shell { grid-template-columns:1fr; } .result { position:static; max-height:none; } }
   @media (max-width:560px) {
     .shell { padding:14px; } .top-in { padding:10px 14px; } .step { padding:18px 16px; } .bar { padding:14px 16px; flex-wrap:wrap; }
@@ -230,6 +248,9 @@
         <div><label class="f" for="dob">Date of birth</label><input id="dob" name="claimed.date_of_birth" type="date" required></div>
         <div><label class="f" for="province">Issuing province or territory</label><select id="province" name="claimed.issuing_province" required></select></div>
         <div class="span2"><label class="f" for="licence">Licence number</label><input id="licence" name="claimed.licence_number" type="text" required placeholder="Hyphens and spaces are fine"></div>
+        <div class="span2"><label class="f" for="lclass">Licence class</label><input id="lclass" name="claimed.licence_class" type="text" required maxlength="20" placeholder="As printed, for example G, 5 or 1"></div>
+        <div><label class="f" for="issued">Issue date</label><input id="issued" name="claimed.issue_date" type="date" required></div>
+        <div><label class="f" for="expiry">Expiry date</label><input id="expiry" name="claimed.expiry_date" type="date" required></div>
       </div>
     </section>
 
@@ -282,6 +303,11 @@
   <aside class="card result" id="result" aria-live="polite" aria-label="Verification result" tabindex="-1"></aside>
 </main>
 
+<dialog class="dec" id="decDlg" aria-labelledby="decTitle">
+  <div class="dec-h"><h2 id="decTitle">Decoded barcode details</h2><button class="mini" type="button" id="decClose" aria-label="Close"></button></div>
+  <div class="dec-b" id="decBody"></div>
+</dialog>
+
 <script>
 (function () {
   "use strict";
@@ -297,16 +323,26 @@
     JURISDICTION_MISMATCH:"Issuing province does not match", NAME_MISMATCH:"Name does not match the card",
     DOB_MISMATCH:"Date of birth does not match", LICENCE_NUMBER_MISMATCH:"Licence number does not match",
     LICENCE_EXPIRED:"Licence expired", UNDERAGE:"Under the minimum age",
-   
+    CLASS_MISMATCH:"Licence class does not match", ISSUE_DATE_MISMATCH:"Issue date does not match",
+    EXPIRY_DATE_MISMATCH:"Expiry date does not match", LICENCE_NOT_YET_VALID:"Issue date is in the future",
     FACE_NOT_FOUND_SELFIE:"No face found in the selfie", FACE_NOT_FOUND_LICENCE:"No face found on the licence",
     IMAGE_QUALITY:"Selfie quality problem", LIVENESS_FAILED:"Live person not confirmed",
     FACE_MISMATCH:"Face does not match the licence", PLATE_NOT_FOUND:"No plate found",
     PLATE_UNREADABLE:"Plate not readable", PLATE_MISMATCH:"Plate does not match" };
   var STAGE_OF = { BARCODE_UNREADABLE:"barcode", BARCODE_NOT_AAMVA:"barcode", JURISDICTION_MISMATCH:"barcode",
     NAME_MISMATCH:"barcode", DOB_MISMATCH:"barcode", LICENCE_NUMBER_MISMATCH:"barcode", LICENCE_EXPIRED:"barcode",
-    UNDERAGE:"barcode",
+    UNDERAGE:"barcode", CLASS_MISMATCH:"barcode", ISSUE_DATE_MISMATCH:"barcode", EXPIRY_DATE_MISMATCH:"barcode",
+    LICENCE_NOT_YET_VALID:"barcode",
     FACE_NOT_FOUND_SELFIE:"face", FACE_NOT_FOUND_LICENCE:"face", IMAGE_QUALITY:"face", LIVENESS_FAILED:"face",
     FACE_MISMATCH:"face", PLATE_NOT_FOUND:"vehicle", PLATE_UNREADABLE:"vehicle", PLATE_MISMATCH:"vehicle" };
+  var FIELD = { issuing_province:"Issuing province", licence_number:"Licence number", full_name:"Full name",
+    date_of_birth:"Date of birth", licence_class:"Licence class", issue_date:"Issue date", expiry_date:"Expiry date" };
+  var ELEMENT = { DAA:"Full name", DAB:"Family name", DAC:"First name", DAD:"Middle names", DCS:"Family name", DCT:"Given names",
+    DBA:"Expiry date", DBB:"Date of birth", DBD:"Issue date", DDB:"Card revision date", DBC:"Sex", DAY:"Eye colour",
+    DAZ:"Hair colour", DAU:"Height", DAW:"Weight", DAG:"Street", DAH:"Street line 2", DAI:"City", DAJ:"Jurisdiction",
+    DAK:"Postal code", DAQ:"Licence number", DCA:"Class", DCB:"Restrictions", DCD:"Endorsements", DCF:"Document discriminator",
+    DCG:"Country", DCK:"Inventory control number", DDA:"Compliance type", DDE:"Family name truncated",
+    DDF:"First name truncated", DDG:"Middle name truncated", DDK:"Organ donor", DDL:"Veteran", DCU:"Name suffix" };
   var COLOURS = { barcode:"#27407a", face:"#17794a", vehicle:"#b7791f", rest:"#b8b3a4" };
   var MAX_BYTES = 10000000;
 
@@ -455,7 +491,15 @@
       if (st.readable) rows.push(["Format", st.aamva ? "Licence barcode (AAMVA)" : "Not a licence barcode"]);
       if (st.jurisdiction) rows.push(["Issued by", NAMES[st.jurisdiction] || st.jurisdiction]);
       if (st.readable && st.aamva) rows.push(["Licence rules", (st.gates_failed && st.gates_failed.length) ? st.gates_failed.length + " not met" : "All met"]);
+      if (st.checks && st.checks.length) {
+        rows.push(["Fields matched", st.checks.filter(function (c) { return c.passed; }).length + " of " + st.checks.length]);
+      }
       body.appendChild(kv(rows));
+      if ((st.checks && st.checks.length) || data.barcode_fields) {
+        var vb = el("button", "btn ghost small-btn", "View decoded details"); vb.type = "button";
+        vb.addEventListener("click", function () { openDecoded(data); });
+        body.appendChild(vb);
+      }
     } else if (name === "face") {
       var rows2 = [];
       if (st.liveness_score !== undefined) rows2.push(["Live person score", st.liveness_score.toFixed(2) + "  (needs " + st.liveness_threshold.toFixed(2) + ")"]);
@@ -535,6 +579,44 @@
     s.lastChild.style.height = "10px"; s.appendChild(svg); s.appendChild(el("div", "legend", "RAM of the node (MB) from the start to the end of this verification. Dashed lines mark stage ends. Red dot is the peak."));
     return s;
   }
+  function cell(v) { return v === null || v === undefined || v === "" ? "\u2014" : String(v); }
+  function table(heads, rows) {
+    var wrap = el("div", "tbl-wrap"), t = el("table", "cmp"), thead = el("thead"), hr = el("tr"), tb = el("tbody");
+    heads.forEach(function (h) { hr.appendChild(el("th", null, h)); });
+    add(thead, hr); add(t, thead, tb); rows.forEach(function (r) { tb.appendChild(r); }); wrap.appendChild(t); return wrap;
+  }
+  function openDecoded(data) {
+    var st = (data.stages && data.stages.barcode) || {}, body = $("decBody");
+    clear(body);
+    body.appendChild(el("h3", null, "Entered details against the barcode"));
+    if (st.checks && st.checks.length) {
+      body.appendChild(table(["Field", "Entered", "From barcode", "Match", "Pass mark", "Result"], st.checks.map(function (c) {
+        var tr = el("tr", c.passed ? "" : "no"), r = el("td");
+        add(tr, el("td", null, FIELD[c.field] || c.field), el("td", "mono", cell(c.claimed)), el("td", "mono", cell(c.decoded)),
+          el("td", "n num", c.score.toFixed(1) + "%"), el("td", "n num", c.threshold >= 100 ? "100% (exact)" : "\u2265 " + c.threshold + "%"));
+        r.appendChild(el("span", "res " + (c.passed ? "ok" : "no"), c.passed ? "MATCH" : "NO MATCH")); tr.appendChild(r);
+        return tr;
+      })));
+      body.appendChild(el("p", "hint", "The name uses a fuzzy score. Province, licence number, date of birth, class, issue date and expiry date must match exactly."));
+    } else {
+      body.appendChild(el("p", "hint", "Nothing was compared: the barcode could not be read or parsed."));
+    }
+    body.appendChild(el("h3", null, "Everything decoded from the barcode"));
+    var f = data.barcode_fields;
+    if (f && Object.keys(f).length) {
+      body.appendChild(table(["Element", "Meaning", "Value"], Object.keys(f).sort().map(function (k) {
+        return add(el("tr"), el("td", "mono", k), el("td", null, ELEMENT[k] || "Issuer-specific"), el("td", "mono", cell(f[k])));
+      })));
+    } else {
+      body.appendChild(el("p", "hint", "This node does not return the full barcode. Set KOMUTE_RESPONSE_BARCODE_FIELDS=true to show it."));
+    }
+    var dlg = $("decDlg");
+    if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+  }
+  $("decClose").appendChild(icon("ic-x"));
+  $("decClose").addEventListener("click", function () { $("decDlg").close(); });
+  $("decDlg").addEventListener("click", function (e) { if (e.target === $("decDlg")) $("decDlg").close(); });
+
   function rawSection(data) {
     var s = el("section", "sec"), d = el("details", "raw"), sm = el("summary", null, "Raw response");
     var pre = el("pre", null, JSON.stringify(data, null, 2));

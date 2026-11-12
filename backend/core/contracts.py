@@ -26,6 +26,10 @@ class ReasonCode(StrEnum):
     UNDERAGE = "UNDERAGE"
     FACE_MISMATCH = "FACE_MISMATCH"
     PLATE_MISMATCH = "PLATE_MISMATCH"
+    CLASS_MISMATCH = "CLASS_MISMATCH"
+    ISSUE_DATE_MISMATCH = "ISSUE_DATE_MISMATCH"
+    EXPIRY_DATE_MISMATCH = "EXPIRY_DATE_MISMATCH"
+    LICENCE_NOT_YET_VALID = "LICENCE_NOT_YET_VALID"
 
 
 _R = ReasonCode
@@ -54,6 +58,10 @@ MESSAGES: dict[ReasonCode, str] = {
     _R.UNDERAGE: "The licence holder is under the minimum age.",
     _R.FACE_MISMATCH: "The selfie does not match the face on the licence.",
     _R.PLATE_MISMATCH: "The licence plate in the photo does not match the plate given.",
+    _R.CLASS_MISMATCH: "The licence class given does not match the licence.",
+    _R.ISSUE_DATE_MISMATCH: "The issue date given does not match the licence.",
+    _R.EXPIRY_DATE_MISMATCH: "The expiry date given does not match the licence.",
+    _R.LICENCE_NOT_YET_VALID: "The licence issue date is in the future.",
 }
 
 
@@ -86,6 +94,10 @@ class Claimed:
     vehicle_make: str | None = None
     vehicle_model: str | None = None
     vehicle_year: int | None = None
+    # Cross-checked against the barcode. The API requires them; None (library callers) fails the check.
+    licence_class: str | None = None
+    issue_date: date | None = None
+    expiry_date: date | None = None
 
 
 @dataclass

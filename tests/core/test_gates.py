@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, datetime, timezone
 
 from backend.core.aamva import parse_aamva
@@ -13,14 +14,19 @@ def claimed(**kw) -> Claimed:
         full_name="Alex Jamie Tester", date_of_birth=date(1990, 3, 15),
         licence_number="T1234-56789-01234", issuing_province="ON", plate_number="ABC123",
         vehicle_colour="Grey", vehicle_make=None, vehicle_model=None, vehicle_year=None,
+        licence_class="G", issue_date=date(2023, 9, 14), expiry_date=date(2030, 12, 31),
     )
     base.update(kw)
     return Claimed(**base)
 
 
-def run(fields=None, iin="636012", cl=None, now=NOW):
+def run(fields=None, iin="636012", cl=None, now=NOW, align=True):
+    """`align` copies the card's class and dates into the claim, so a test isolates the rule it is about."""
     rec = parse_aamva(make_aamva_text(iin=iin, fields=dict(FAKE_FIELDS, **(fields or {}))))
-    reasons, adv = licence_gates(rec, cl or claimed(), now)
+    cl = cl or claimed()
+    if align:
+        cl = replace(cl, licence_class=rec.fields.get("DCA"), issue_date=rec.date("DBD"), expiry_date=rec.date("DBA"))
+    reasons, adv, _ = licence_gates(rec, cl, now)
     return {r.code for r in reasons}, adv
 
 
@@ -105,9 +111,51 @@ def test_missing_dates_fail_closed():
     f = {k: v for k, v in FAKE_FIELDS.items() if k not in ("DBA", "DBB")}
     rec = parse_aamva(make_aamva_text(fields=f))
     codes = {r.code for r in licence_gates(rec, claimed(), NOW)[0]}
-    assert {ReasonCode.LICENCE_EXPIRED, ReasonCode.DOB_MISMATCH} <= codes
+    assert {ReasonCode.LICENCE_EXPIRED, ReasonCode.DOB_MISMATCH, ReasonCode.EXPIRY_DATE_MISMATCH} <= codes
     assert ReasonCode.UNDERAGE not in codes
 
 
 def test_unparseable_claimed_province_does_not_crash():
     assert ReasonCode.JURISDICTION_MISMATCH in run(cl=claimed(issuing_province="ZZ"))[0]
+
+
+def test_class_must_match_the_barcode():
+    assert ReasonCode.CLASS_MISMATCH in run(cl=claimed(licence_class="G2"), align=False)[0]
+    assert run(cl=claimed(licence_class=" g "), align=False)[0] == set()  # case and spaces ignored
+    assert ReasonCode.CLASS_MISMATCH in run(cl=claimed(licence_class=None), align=False)[0]  # missing claim fails closed
+    no_class = {k: v for k, v in FAKE_FIELDS.items() if k != "DCA"}
+    rec = parse_aamva(make_aamva_text(fields=no_class))
+    assert ReasonCode.CLASS_MISMATCH in {r.code for r in licence_gates(rec, claimed(), NOW)[0]}
+
+
+def test_issue_and_expiry_dates_must_match_exactly():
+    codes = run(cl=claimed(issue_date=date(2023, 9, 15), expiry_date=date(2030, 12, 30)), align=False)[0]
+    assert codes == {ReasonCode.ISSUE_DATE_MISMATCH, ReasonCode.EXPIRY_DATE_MISMATCH}
+    assert run(align=False)[0] == set()
+
+
+def test_issue_date_in_the_future_fails():
+    assert ReasonCode.LICENCE_NOT_YET_VALID in run({"DBD": "20261112"})[0]
+    assert ReasonCode.LICENCE_NOT_YET_VALID not in run({"DBD": "20261111"})[0]
+
+
+def test_checks_report_every_field_with_a_score():
+    rec = parse_aamva(make_aamva_text())
+    _, _, checks = licence_gates(rec, claimed(full_name="Alex Tester"), NOW)
+    by = {c["field"]: c for c in checks}
+    assert list(by) == ["issuing_province", "licence_number", "full_name", "date_of_birth", "licence_class",
+                        "issue_date", "expiry_date"]
+    assert all(c["passed"] for c in checks)
+    assert by["licence_class"] == {"field": "licence_class", "claimed": "G", "decoded": "G", "score": 100.0,
+                                   "threshold": 100.0, "passed": True}
+    assert by["issue_date"]["decoded"] == "2023-09-14" and by["full_name"]["threshold"] == 90.0
+    _, _, bad = licence_gates(rec, claimed(full_name="Alex Tster", licence_class="A"), NOW)
+    by = {c["field"]: c for c in bad}
+    assert by["licence_class"]["score"] == 0.0 and not by["licence_class"]["passed"]
+    assert 0 < by["full_name"]["score"] <= 100
+
+
+def test_name_pass_mark_is_90_by_default():
+    # One letter wrong scores about 94: passes. Two letters wrong (ALAN for ALEX) scores about 88: fails at 90.
+    assert ReasonCode.NAME_MISMATCH not in run(cl=claimed(full_name="Alex Jamie Testor"))[0]
+    assert ReasonCode.NAME_MISMATCH in run(cl=claimed(full_name="Alan Jamie Tester"))[0]  # about 88

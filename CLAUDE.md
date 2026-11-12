@@ -74,8 +74,9 @@ Legal citations in the owner's answers (Toronto Chapter 546, Quebec SAAQ rules, 
 - Suspension and revocation are out of scope. The host queries provincial driver records.
 
 **Matching**
-- Name: strip accents (Unicode normalisation), turn punctuation and hyphens into spaces, then token-sort fuzzy match with an 85% pass. Known weakness: 85% accepts near-names such as `SMITH` and `SMYTH`. A stricter exact-surname rule is recommended but not adopted.
+- Name: strip accents (Unicode normalisation), turn punctuation and hyphens into spaces, then token-sort fuzzy match with a 90% pass (owner, 2026-11-12; was 85%). Known weakness: 90% still accepts near-names such as `SMITH` and `SMYTH` (score exactly 90). A stricter exact-surname rule is recommended but not adopted.
 - Date of birth: exact match to the barcode, zero tolerance.
+- Class, issue date and expiry date (owner, 2026-11-12): the host sends them; each must equal the barcode (`DCA`, `DBD`, `DBA`) exactly. An issue date after today fails (`LICENCE_NOT_YET_VALID`). Each cross-checked field returns a check row with a 0–100 score in `stages.barcode.checks` (personal data in the response). The full decoded barcode is returned only with `KOMUTE_RESPONSE_BARCODE_FIELDS=true`.
 - Plate: it matches only if the strings are equal after normalisation, or differ by one optical-confusion pair (`O`/`0`, `I`/`1`, `B`/`8`). Any other difference is a mismatch.
 - Jurisdiction: the claimed province, the IIN and `DAJ` must agree, or the result is `REJECTED`.
 
@@ -186,7 +187,7 @@ Compared on 2026-11-11 with a secondary copy of the US FMCSA chart (August 2021)
 ## Inputs still needed from the owner
 
 - Real sample licences, to confirm each issuer prints a barcode.
-- A decision on the 85% name rule versus an exact-surname rule, and on tightening the licence regexes.
+- A decision on the 90% name rule versus an exact-surname rule, and on tightening the licence regexes.
 - Legal review of the citations above, of the hand-controls rule, and of how long to keep the image-free audit record.
 - A confirmed origin and SHA-256 for each ONNX file, recorded in `backend/models/models.lock`.
 - A liveness model file, or approval of a candidate.

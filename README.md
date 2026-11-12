@@ -6,7 +6,7 @@ An offline verification module for driver onboarding. A host application sends a
 
 ## What it checks
 
-1. **Licence barcode.** Decodes the AAMVA PDF417 on the back and trusts it over anything printed. Gates: issuing jurisdiction, licence number, name, date of birth, expiry, age 18+. Any class and restriction is accepted.
+1. **Licence barcode.** Decodes the AAMVA PDF417 on the back and trusts it over anything printed. Cross-checks the typed jurisdiction, licence number, name (fuzzy, pass mark 90%), date of birth, class, issue date and expiry date against it (all exact except the name), then checks expiry, issue date not in the future and age 18+. Any class and restriction is accepted.
 2. **Face.** The selfie against the licence photo (YuNet, `w600k_r50` embeddings), after a single-photo liveness check.
 3. **Vehicle.** Plate read by an OCR restricted to `A–Z`, `0–9` and compared to the claimed plate. Body colour is advisory only.
 
@@ -44,11 +44,13 @@ Open `http://127.0.0.1:8000/` for the test page. Keep `--workers 1`. Settings an
 |---|---|
 | `request_id`, `driver_id` | letters, digits, `-`, `_`, up to 64. Same `request_id` and data returns the stored result; different data returns `409` |
 | `consent_at`, `consent_policy_version` | required. ISO-8601 time **with** a time zone |
-| `claimed.full_name`, `claimed.date_of_birth` (`YYYY-MM-DD`), `claimed.licence_number`, `claimed.issuing_province`, `claimed.plate_number`, `claimed.vehicle_colour` | province is one of `ON QC BC AB MB SK NB NS NL PE YT NT NU` (`NF` is accepted as `NL`) |
+| `claimed.full_name`, `claimed.date_of_birth` (`YYYY-MM-DD`), `claimed.licence_number`, `claimed.issuing_province`, `claimed.plate_number`, `claimed.vehicle_colour`, `claimed.licence_class`, `claimed.issue_date` and `claimed.expiry_date` (`YYYY-MM-DD`) | province is one of `ON QC BC AB MB SK NB NS NL PE YT NT NU` (`NF` is accepted as `NL`) |
 | `claimed.vehicle_make`, `claimed.vehicle_model`, `claimed.vehicle_year` | optional, stored only |
 | `selfie`, `licence_front`, `licence_back`, `vehicle` | JPEG, PNG or WebP, up to 10 MB each |
 
 Responses: `200` with `{decision, reasons[{code, retryable, message}], stages, advisories, timings_ms, rss_mb, audit}`; `422` bad input (specific code); `401` bad key; `409` request id reused with other data; `503` busy (one verification at a time; honour `Retry-After`); `500` engine fault with **no** decision. Also `GET /v1/sessions/{request_id}`, `GET /health`, `GET /`.
+
+**Decoded barcode popup:** on the test page, the barcode card has a **View decoded details** button. It shows each typed field next to the barcode value with its match score, and every decoded barcode element when `KOMUTE_RESPONSE_BARCODE_FIELDS=true` (`run.ps1` turns this on; it is off by default because it returns the address).
 
 **System monitor:** open `/stats` (or `/system-stats`). It refreshes every second and shows process and system CPU (overall and per core), RSS against the 900 MB target and 1200 MB limit, peak RAM, 15-minute CPU and memory charts, each model's status (running, idle, not loaded, skipped in dev), load time, run timings, tensor shapes and SHA-256, the current engine stage, per-step timing statistics, the last verification, process, disk, host and software details, and the effective settings. Its data comes from `GET /v1/system` (same `X-API-Key` rule). That endpoint never sends secrets or personal data.
 

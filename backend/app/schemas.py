@@ -15,7 +15,9 @@ from .errors import ApiError
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 TEXT_FIELDS = (
     "claimed.full_name", "claimed.licence_number", "claimed.plate_number", "claimed.vehicle_colour",
+    "claimed.licence_class",
 )
+DATE_FIELDS = ("claimed.date_of_birth", "claimed.issue_date", "claimed.expiry_date")
 MAX_TEXT = 200  # default; the app passes Settings.max_text_chars
 
 
@@ -62,10 +64,15 @@ def build_input(form: dict[str, str], images: dict[str, bytes], max_text: int = 
         raise _bad("INVALID_FIELD", "consent_policy_version is too long.")
 
     text = {name: _text(form, name, max_text) for name in TEXT_FIELDS}
-    try:
-        dob = date.fromisoformat((form.get("claimed.date_of_birth") or "").strip())
-    except ValueError:
-        raise _bad("INVALID_FIELD", "claimed.date_of_birth must be YYYY-MM-DD.") from None
+    dates: dict[str, date] = {}
+    for name in DATE_FIELDS:
+        raw = (form.get(name) or "").strip()
+        if not raw:
+            raise _bad("MISSING_FIELD", f"Field {name} is required.")
+        try:
+            dates[name] = date.fromisoformat(raw)
+        except ValueError:
+            raise _bad("INVALID_FIELD", f"{name} must be YYYY-MM-DD.") from None
     try:
         province = policy.normalise_province(form.get("claimed.issuing_province") or "")
     except ValueError:
@@ -75,12 +82,14 @@ def build_input(form: dict[str, str], images: dict[str, bytes], max_text: int = 
         raise _bad("INVALID_FIELD", "claimed.vehicle_year must be a four-digit year.")
 
     claimed = Claimed(
-        full_name=text["claimed.full_name"], date_of_birth=dob, licence_number=text["claimed.licence_number"],
+        full_name=text["claimed.full_name"], date_of_birth=dates["claimed.date_of_birth"], licence_number=text["claimed.licence_number"],
         issuing_province=province, plate_number=text["claimed.plate_number"],
         vehicle_colour=text["claimed.vehicle_colour"],
         vehicle_make=(form.get("claimed.vehicle_make") or "").strip() or None,
         vehicle_model=(form.get("claimed.vehicle_model") or "").strip() or None,
         vehicle_year=int(year_raw) if year_raw else None,
+        licence_class=text["claimed.licence_class"],
+        issue_date=dates["claimed.issue_date"], expiry_date=dates["claimed.expiry_date"],
     )
     return VerifyInput(
         request_id, driver_id, consent_dt, version, claimed, images, payload_hash(form, images)

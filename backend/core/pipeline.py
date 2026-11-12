@@ -188,6 +188,9 @@ class Engine:
                 "issuing_province": inp.claimed.issuing_province,
                 "plate_number": inp.claimed.plate_number,
                 "vehicle_colour": inp.claimed.vehicle_colour,
+                "licence_class": inp.claimed.licence_class,
+                "issue_date": inp.claimed.issue_date.isoformat() if inp.claimed.issue_date else None,
+                "expiry_date": inp.claimed.expiry_date.isoformat() if inp.claimed.expiry_date else None,
             },
             "barcode_fields": dict(record.fields) if record else None,
             "timings_ms": timings,
@@ -207,6 +210,8 @@ class Engine:
             "memory_trace": mem.trace(),
             "audit": {"manifest_id": manifest_id, "key_id": self._s.manifest_key_id},
         }
+        if self._s.response_barcode_fields and record is not None:
+            response["barcode_fields"] = dict(record.fields)
         save(self._store, inp.request_id, inp.driver_id, inp.payload_sha256, response)
         self.monitor.done(response, {f"{r.name}.{k}": v for r in results for k, v in r.timings_ms.items()})
         return response

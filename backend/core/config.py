@@ -25,10 +25,11 @@ class Settings(BaseSettings):
     models_dir: Path = Path("backend/models")
     liveness_model: Path | None = None
     dev_skip_liveness: bool = False
+    response_barcode_fields: bool = False  # true adds every decoded barcode element (address too) to the response
     face_match_threshold: float = Field(0.40, ge=0.2, le=0.95)
     face_detect_score: float = Field(0.7, gt=0, lt=1)
     liveness_threshold: float = Field(0.5, gt=0, lt=1)
-    name_match_threshold: float = Field(85.0, ge=50, le=100)
+    name_match_threshold: float = Field(90.0, ge=50, le=100)
     min_age: int = Field(18, ge=16, le=100)
     plate_detect_score: float = Field(0.35, gt=0, lt=1)
     barcode_budget_s: float = Field(10.0, gt=0, le=60)

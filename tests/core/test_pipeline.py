@@ -194,6 +194,12 @@ def test_no_pii_in_logs_or_response(settings, store, caplog):
         assert secret not in text
 
 
+def test_full_barcode_fields_only_when_enabled(settings, store):
+    assert "barcode_fields" not in engine(settings, store, Fakes()).verify(inp())
+    on = settings.model_copy(update={"response_barcode_fields": True})
+    assert engine(on, store, Fakes()).verify(inp("r2"))["barcode_fields"] == {"DAQ": SECRET_LICENCE}
+
+
 def test_advisories_propagate_and_dev_skip_is_flagged(settings, store):
     f = Fakes(vehicle_adv=[Advisory.COLOUR_MISMATCH])
     resp = engine(settings, store, f, skipped=True).verify(inp())

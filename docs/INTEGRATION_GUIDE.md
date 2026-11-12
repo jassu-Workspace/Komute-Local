@@ -34,6 +34,8 @@ The verification node is a local HTTP service. The main application calls it, se
 | `claimed.date_of_birth` | text | `YYYY-MM-DD` |
 | `claimed.licence_number` | text | Hyphens and spaces are fine |
 | `claimed.issuing_province` | text | `ON QC BC AB MB SK NB NS NL PE YT NT NU` (`NF` is accepted as `NL`) |
+| `claimed.licence_class` | text | As printed, e.g. `G`, `5`. Case and spaces are ignored; must equal the barcode class (`DCA`) |
+| `claimed.issue_date`, `claimed.expiry_date` | text | `YYYY-MM-DD`. Must equal the barcode issue date (`DBD`) and expiry date (`DBA`) |
 | `claimed.plate_number` | text | Spaces and hyphens are fine |
 | `claimed.vehicle_colour` | text | e.g. `Black`. Advisory only |
 | `claimed.vehicle_make`, `claimed.vehicle_model`, `claimed.vehicle_year` | text | Optional. Stored, never checked |
@@ -54,6 +56,7 @@ with open("selfie.jpg", "rb") as s, open("front.jpg", "rb") as f, open("back.jpg
             "claimed.full_name": "Alex Tester", "claimed.date_of_birth": "1990-03-15",
             "claimed.licence_number": "T1234-56789-01234", "claimed.issuing_province": "ON",
             "claimed.plate_number": "ABC 123", "claimed.vehicle_colour": "Grey",
+            "claimed.licence_class": "G", "claimed.issue_date": "2023-09-14", "claimed.expiry_date": "2030-12-31",
         },
         files={"selfie": s, "licence_front": f, "licence_back": b, "vehicle": v},
         timeout=httpx.Timeout(30.0, connect=3.0),
@@ -101,7 +104,9 @@ const res = await fetch(`${BASE_URL}/v1/verify`, { method: "POST", headers: API_
 | `reasons[].code` | string | Stable code, section 4. Branch on this, not on the message |
 | `reasons[].retryable` | boolean | `true`: a better photo could change the result. `false`: a new photo will not help |
 | `reasons[].message` | string | A sentence safe to show to the driver |
-| `stages.barcode` | object | `ran`, `readable`, `aamva`, `jurisdiction` (e.g. `"ON"`), `gates_failed` (codes) |
+| `stages.barcode` | object | `ran`, `readable`, `aamva`, `jurisdiction` (e.g. `"ON"`), `gates_failed` (codes), `checks` |
+| `stages.barcode.checks[]` | objects | One per cross-checked field: `field`, `claimed`, `decoded`, `score` (0–100), `threshold`, `passed`. **Holds personal data.** The name is fuzzy (pass mark `KOMUTE_NAME_MATCH_THRESHOLD`, default 90); every other field is exact (100 or 0) |
+| `barcode_fields` | object | Only when `KOMUTE_RESPONSE_BARCODE_FIELDS=true`: every decoded barcode element, address included. Off by default |
 | `stages.face` | object | `ran`; when run: `liveness_score`, `liveness_threshold`, `similarity`, `threshold` |
 | `stages.vehicle` | object | `ran`; when run: `plate_found`, `plate_read`, `plate_confidence`, `plate_matched`, `colour`, `colour_hex`, `delta_e` |
 | `advisories[]` | strings | Informational only; never block approval: `COLOUR_MISMATCH`, `COLOUR_UNVERIFIED`, `LICENCE_FORMAT_UNUSUAL`, `LIVENESS_SKIPPED_DEV` |
@@ -133,8 +138,8 @@ Every error has the same shape: `{"error": {"code": "...", "message": "..."}}`.
 | `FACE_NOT_FOUND_SELFIE`, `LIVENESS_FAILED`, `IMAGE_QUALITY` | yes | Retake the **selfie**: face the camera, good light, one person, live capture |
 | `FACE_NOT_FOUND_LICENCE` | yes | Retake the **licence front**: whole card, portrait visible |
 | `PLATE_NOT_FOUND`, `PLATE_UNREADABLE` | yes | Retake the **vehicle photo**: plate level, in frame, readable |
-| `JURISDICTION_MISMATCH`, `NAME_MISMATCH`, `DOB_MISMATCH`, `LICENCE_NUMBER_MISMATCH` | no | The typed details do not match the licence. Ask the driver to correct them |
-| `LICENCE_EXPIRED`, `UNDERAGE` | no | Not eligible |
+| `JURISDICTION_MISMATCH`, `NAME_MISMATCH`, `DOB_MISMATCH`, `LICENCE_NUMBER_MISMATCH`, `CLASS_MISMATCH`, `ISSUE_DATE_MISMATCH`, `EXPIRY_DATE_MISMATCH` | no | The typed details do not match the licence. Ask the driver to correct them |
+| `LICENCE_EXPIRED`, `UNDERAGE`, `LICENCE_NOT_YET_VALID` | no | Not eligible (`LICENCE_NOT_YET_VALID`: the barcode issue date is after today) |
 | `FACE_MISMATCH` | no | The selfie does not match the licence photo |
 | `PLATE_MISMATCH` | no | The plate in the photo differs from the plate entered |
 

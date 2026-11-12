@@ -16,7 +16,7 @@ def normalise_name(s: str) -> str:
     return " ".join(re.sub(r"[^A-Z0-9]", " ", stripped.upper()).split())
 
 
-def names_match(claimed: str, document: str, threshold: float = 85.0) -> tuple[bool, float]:
+def names_match(claimed: str, document: str, threshold: float = 90.0) -> tuple[bool, float]:
     a, b = normalise_name(claimed), normalise_name(document)
     if not a or not b:
         return False, 0.0
